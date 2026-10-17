@@ -10,13 +10,15 @@ import {
   hasNone,
   markDone,
   isDone,
+  conduct,
+  accuracy,
   RANK_THRESHOLDS,
   RANK_TITLES,
   load,
   save,
   wipe,
 } from "../src/engine/state";
-import { resolveEnding, ENDINGS, F, FINALE_SUCCESS, FINALE_FAILED } from "../src/engine/endings";
+import { resolveEnding, ENDINGS, F, FINALE_SUCCESS, FINALE_FAILED, LIGHTHOUSE_MIN_INTEGRITY } from "../src/engine/endings";
 
 describe("ranks", () => {
   it("starts as Applicant before hire", () => {
@@ -109,12 +111,22 @@ describe("endings", () => {
     expect(resolveEnding(s).id).toBe(ENDINGS.deadwater.id);
   });
 
-  it("reaches The Lighthouse with a clean chain and external report", () => {
+  it("reaches The Lighthouse with a clean chain, external report, and enough integrity", () => {
     const s = base();
     setFlag(s, FINALE_SUCCESS);
     setFlag(s, F.reportedOut);
     setFlag(s, F.chainIntact);
+    s.integrity = LIGHTHOUSE_MIN_INTEGRITY;
     expect(resolveEnding(s).id).toBe(ENDINGS.lighthouse.id);
+  });
+
+  it("denies The Lighthouse when integrity is too low, even with a clean report", () => {
+    const s = base();
+    setFlag(s, FINALE_SUCCESS);
+    setFlag(s, F.reportedOut);
+    setFlag(s, F.chainIntact);
+    s.integrity = LIGHTHOUSE_MIN_INTEGRITY - 1;
+    expect(resolveEnding(s).id).toBe(ENDINGS.keeper.id);
   });
 
   it("reaches Low Tide when trusting Nadia and handing her the evidence", () => {
@@ -145,5 +157,28 @@ describe("endings", () => {
       [ENDINGS.lighthouse, ENDINGS.lowtide, ENDINGS.keeper, ENDINGS.deadwater].map((e) => e.id),
     );
     expect(ids.size).toBe(4);
+  });
+});
+
+describe("conduct and accuracy", () => {
+  it("maps integrity to conduct tiers across the range", () => {
+    const at = (n: number): string => {
+      const s = freshSave();
+      s.integrity = n;
+      return conduct(s).tier;
+    };
+    expect(at(8)).toBe("Exemplary");
+    expect(at(4)).toBe("Principled");
+    expect(at(1)).toBe("Pragmatic");
+    expect(at(-2)).toBe("Compromised");
+    expect(at(-5)).toBe("Corrupt");
+  });
+
+  it("reports full accuracy before any case, then the clean ratio", () => {
+    const s = freshSave();
+    expect(accuracy(s)).toBe(1);
+    s.totalCloses = 4;
+    s.cleanCloses = 3;
+    expect(accuracy(s)).toBeCloseTo(0.75);
   });
 });

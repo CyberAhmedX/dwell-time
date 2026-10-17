@@ -197,6 +197,8 @@ export interface SceneChoice {
   clearFlags?: Flag[];
   integrity?: number;
   reply?: SceneLine[]; // immediate response lines
+  requires?: Flag[]; // option only offered if all these flags are present
+  hideIf?: Flag[]; // option hidden if any of these flags are present
 }
 
 export interface Scene {

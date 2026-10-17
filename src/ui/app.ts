@@ -9,6 +9,8 @@ import {
   rankTitle,
   rankIndex,
   rankProgress,
+  conduct,
+  accuracy,
   hasAll,
   hasNone,
   setFlag,
@@ -62,9 +64,18 @@ export class App {
   private renderTopbar(): void {
     const prog = rankProgress(this.s);
     const pct = prog.max ? 100 : Math.round((prog.have / prog.need) * 100);
-    const left = el("div", { class: "tb-left" }, [
-      el("span", { class: "tb-logo", text: "Dwell Time" }),
-    ]);
+    const leftKids: HTMLElement[] = [el("span", { class: "tb-logo", text: "Dwell Time" })];
+    if (this.s.hired) {
+      const con = conduct(this.s);
+      const sign = this.s.integrity >= 3 ? "good" : this.s.integrity >= 0 ? "mid" : "bad";
+      leftKids.push(
+        el("span", { class: `tb-conduct ${sign}`, title: con.note }, [
+          el("span", { class: "tb-conduct-dot" }),
+          el("span", { text: con.tier }),
+        ]),
+      );
+    }
+    const left = el("div", { class: "tb-left" }, leftKids);
     const mid = this.s.hired
       ? el("div", { class: "tb-rank" }, [
           el("span", { class: "tb-rankname", text: rankTitle(this.s) }),
@@ -223,7 +234,9 @@ export class App {
           this.persist();
           this.render();
         } else {
-          // allow retry: back to track select
+          // rejection is recorded. You can retry, but it goes on the board.
+          this.s.interviewFails++;
+          this.showToast("Interview failed. It is on your record.");
           this.s.track = null;
           this.persist();
           this.render();
@@ -390,13 +403,24 @@ export class App {
     const submit = el("button", { class: "btn primary", type: "button", text: review ? "Back to desk" : "Submit findings" });
     const feedback = el("div", { class: "ws-feedback" });
 
+    // Critical cases bite: a limited number of tries, then the case is botched
+    // and closes badly rather than letting you retry forever.
+    const critical = t.severity === "critical";
+    const maxAttempts = critical ? 2 : Infinity;
+    let wrong = 0;
+
+    if (critical && !review) {
+      feedback.append(
+        el("p", { class: "warn-crit", text: `Critical case. You have ${maxAttempts} attempts before it goes down as botched.` }),
+      );
+    }
+
     submit.addEventListener("click", () => {
       audio.click();
       if (review) {
         this.screenChapter();
         return;
       }
-      // decisions must be chosen
       const missing = controls.find((c) => !c.ready());
       if (missing) {
         mount(feedback, el("p", { class: "warn", text: "Answer every item before you submit." }));
@@ -406,14 +430,24 @@ export class App {
       const allCorrect = controls.every((c) => c.correct());
       controls.forEach((c) => c.reveal());
       if (!allCorrect) {
+        wrong++;
+        if (wrong >= maxAttempts) {
+          // out of tries on a critical case: decisions still count, but the
+          // investigation itself is botched.
+          controls.forEach((c) => c.apply(this.s));
+          audio.wrong();
+          this.completeTicket(t, { wrongAttempts: wrong, botched: true });
+          return;
+        }
         audio.wrong();
-        mount(feedback, el("p", { class: "warn", text: "Not quite. Read the notes in red, fix those answers, and submit again." }));
+        const left = maxAttempts - wrong;
+        const tail = critical ? ` ${left} attempt${left === 1 ? "" : "s"} left.` : "";
+        mount(feedback, el("p", { class: "warn", text: `Not quite. Read the notes in red, fix those answers, and submit again.${tail}` }));
         return;
       }
-      // apply decisions' flags/integrity
       controls.forEach((c) => c.apply(this.s));
       audio.correct();
-      this.completeTicket(t);
+      this.completeTicket(t, { wrongAttempts: wrong, botched: false });
     });
 
     const body = el("div", { class: "ws-body" }, [
@@ -425,21 +459,55 @@ export class App {
     mount(this.stage, head, body);
   }
 
-  private completeTicket(t: Ticket): void {
+  private completeTicket(t: Ticket, grade: { wrongAttempts: number; botched: boolean }): void {
     const beforeRank = rankIndex(this.s);
-    if (!isDone(this.s, t.id)) {
-      this.s.xp += t.xp;
+    const firstTime = !isDone(this.s, t.id);
+
+    // XP scales with how cleanly you closed it. A clean first-try close earns a
+    // bonus; retries dock it; a botched critical case barely pays and costs
+    // integrity. Story flags always fire so the game never soft-locks.
+    let gained = 0;
+    let toastMsg = "";
+    if (firstTime) {
+      this.s.totalCloses++;
+      if (grade.botched) {
+        gained = Math.round(t.xp * 0.25);
+        this.s.integrity -= 1;
+        this.s.botched++;
+        setFlag(this.s, `botched_${t.id}`);
+        toastMsg = "Case botched";
+      } else if (grade.wrongAttempts === 0) {
+        gained = Math.round(t.xp * 1.2);
+        this.s.cleanCloses++;
+        toastMsg = "Closed clean (+bonus XP)";
+      } else if (grade.wrongAttempts === 1) {
+        gained = t.xp;
+      } else {
+        gained = Math.round(t.xp * 0.6);
+      }
+      this.s.xp += gained;
       markDone(this.s, t.id);
     }
+
     (t.setFlags ?? []).forEach((f) => setFlag(this.s, f));
-    // unlock codex entries taught here
-    t.questions.forEach((q) => {
-      if ("teaches" in q && q.teaches) unlockCodex(this.s, q.teaches);
-    });
+    // You only pick up the field note when you work the case properly.
+    if (!grade.botched) {
+      t.questions.forEach((q) => {
+        if ("teaches" in q && q.teaches) unlockCodex(this.s, q.teaches);
+      });
+    }
     this.persist();
+
     const rankedUp = rankIndex(this.s) > beforeRank;
-    const lines = t.closingRight.map((text) => ({ who: briefSpeaker(t.dept), text }));
+    const lines = grade.botched
+      ? [
+          { who: "narration", text: "The case closes, but not the way anyone wanted. The notes will say it took too long, and that you reached for answers instead of reading the evidence." },
+          { who: briefSpeaker(t.dept), text: "We got there. Barely. On a critical case, barely is how towns end up on the news. Learn from this one." },
+        ]
+      : t.closingRight.map((text) => ({ who: briefSpeaker(t.dept), text }));
+
     this.playDialogue(lines, undefined, () => {
+      if (toastMsg) this.showToast(toastMsg);
       if (rankedUp) {
         audio.rankUp();
         this.showToast(`Promoted to ${rankTitle(this.s)}`);
@@ -658,7 +726,9 @@ export class App {
     const showChoice = (): void => {
       const c = choice!;
       const panel = el("div", { class: "vn-choice" }, [el("p", { class: "vn-choice-prompt", text: c.prompt })]);
-      c.options.forEach((opt) => {
+      // Some options are only on the table if your earlier conduct earned them.
+      const available = c.options.filter((o) => hasAll(this.s, o.requires) && hasNone(this.s, o.hideIf));
+      available.forEach((opt) => {
         const b = el("button", { class: "btn choice", type: "button", text: opt.text });
         b.addEventListener("click", () => {
           audio.click();
@@ -695,11 +765,18 @@ export class App {
       ...ending.lines.map((text) => ({ who: "narration", text })),
     ];
     this.playDialogue(lines, undefined, () => {
+      const con = conduct(this.s);
+      const acc = Math.round(accuracy(this.s) * 100);
       const card = el("div", { class: "ending-card" }, [
         el("div", { class: "ending-kicker", text: "Ending" }),
         el("h1", { class: "ending-title", text: ending.title }),
         el("p", { class: "ending-rank", text: ending.rankTitle }),
         el("p", { class: "ending-epi", text: ending.epigraph }),
+        el("div", { class: "ending-stats" }, [
+          stat("Conduct", con.tier),
+          stat("Case accuracy", `${acc}%`),
+          stat("Botched", String(this.s.botched)),
+        ]),
       ]);
       const again = el("button", { class: "btn primary", type: "button", text: "Play again" });
       again.addEventListener("click", () => {
@@ -782,8 +859,23 @@ export class App {
       this.render();
     });
 
+    const statsBlock = this.s.hired
+      ? el("div", { class: "set-stats" }, [
+          el("div", { class: "set-stats-head", text: "Your record" }),
+          el("div", { class: "ending-stats" }, [
+            stat("Rank", rankTitle(this.s)),
+            stat("Conduct", conduct(this.s).tier),
+            stat("Accuracy", `${Math.round(accuracy(this.s) * 100)}%`),
+            stat("Clean / total", `${this.s.cleanCloses} / ${this.s.totalCloses}`),
+            stat("Botched", String(this.s.botched)),
+          ]),
+          el("p", { class: "muted", text: conduct(this.s).note }),
+        ])
+      : el("span");
+
     const panel = el("div", { class: "overlay-panel" }, [
       el("div", { class: "overlay-head" }, [el("h2", { text: "Settings" })]),
+      statsBlock,
       el("div", { class: "set-row" }, [el("label", { for: "vol", text: "Music and sound volume" }), vol]),
       el("div", { class: "set-row" }, [muteBtn]),
       el("div", { class: "set-about" }, [
@@ -821,6 +913,13 @@ export class App {
 }
 
 // ----- helpers -----
+
+function stat(label: string, value: string): HTMLElement {
+  return el("div", { class: "stat" }, [
+    el("span", { class: "stat-k", text: label }),
+    el("span", { class: "stat-v", text: value }),
+  ]);
+}
 
 interface QuestionControl {
   ready(): boolean;

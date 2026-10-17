@@ -12,6 +12,32 @@ export interface SaveData {
   done: string[]; // completed ticket / scene ids
   codex: string[]; // unlocked codex entry ids
   interviewScore: number;
+  cleanCloses: number; // cases closed correctly on the first submit
+  totalCloses: number; // cases closed overall (graded ones only)
+  botched: number; // critical cases that failed and were force-closed
+  interviewFails: number; // rejected interviews before being hired
+}
+
+// Conduct tiers derived from the hidden integrity score. Ethical choices move
+// it; quiz accuracy does not. This is what the player actually sees.
+export interface Conduct {
+  tier: string;
+  note: string;
+}
+
+export function conduct(save: SaveData): Conduct {
+  const i = save.integrity;
+  if (i >= 6) return { tier: "Exemplary", note: "You do it right even when no one is watching." };
+  if (i >= 3) return { tier: "Principled", note: "You hold the line when it counts." };
+  if (i >= 0) return { tier: "Pragmatic", note: "You bend, but you have not broken." };
+  if (i >= -3) return { tier: "Compromised", note: "You have cut corners that will not uncut." };
+  return { tier: "Corrupt", note: "You stopped pretending the line was there." };
+}
+
+/** Accuracy across graded cases, 0..1. Returns 1 before any case is closed. */
+export function accuracy(save: SaveData): number {
+  if (save.totalCloses === 0) return 1;
+  return save.cleanCloses / save.totalCloses;
 }
 
 export const RANK_TITLES = [
@@ -40,6 +66,10 @@ export function freshSave(): SaveData {
     done: [],
     codex: [],
     interviewScore: 0,
+    cleanCloses: 0,
+    totalCloses: 0,
+    botched: 0,
+    interviewFails: 0,
   };
 }
 

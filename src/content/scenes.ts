@@ -157,7 +157,11 @@ export const SCENES: Scene[] = [
       prompt: "How do you contain this?",
       options: [
         {
+          // The clean save is only on the table if you kept the boundary tight
+          // and read the recon properly. Leave a door open or botch the recon
+          // and this option is gone.
           text: "Cut it at the root: disable the HarborWatch shared credential everywhere and isolate the jump box from the OT boundary.",
+          hideIf: ["left_firewall_open", "botched_t5_plant_recon"],
           setFlags: [FINALE_SUCCESS],
           integrity: 2,
           reply: [

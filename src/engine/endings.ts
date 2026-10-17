@@ -78,16 +78,25 @@ export const ENDINGS: Record<string, Ending> = {
   },
 };
 
+// The best ending is earned, not just chosen: you need a clean chain, an
+// external report, and conduct to match. A compromised analyst who does the
+// right thing only at the very end cannot undo the record behind them.
+export const LIGHTHOUSE_MIN_INTEGRITY = 3;
+
 /**
  * Resolve the ending from the final save state.
  * Order matters: a failed finale always lands in Dead Water. Otherwise the
  * strongest earned path wins, with Company Keeper as the fallback that is
- * always reachable.
+ * always reachable. Integrity gates the best ending.
  */
 export function resolveEnding(saveData: SaveData): Ending {
   if (hasFlag(saveData, FINALE_FAILED)) return ENDINGS.deadwater;
 
-  if (hasFlag(saveData, F.reportedOut) && hasFlag(saveData, F.chainIntact)) {
+  if (
+    hasFlag(saveData, F.reportedOut) &&
+    hasFlag(saveData, F.chainIntact) &&
+    saveData.integrity >= LIGHTHOUSE_MIN_INTEGRITY
+  ) {
     return ENDINGS.lighthouse;
   }
   if (hasFlag(saveData, F.gaveNadia) && hasFlag(saveData, F.trustNadia)) {

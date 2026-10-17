@@ -561,6 +561,62 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* ------------------------------------------------------------------ conduct + stats */
+.tb-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tb-conduct {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  padding: 4px 9px;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.tb-conduct-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.tb-conduct.good { color: var(--good); border-color: rgba(95, 196, 138, 0.4); }
+.tb-conduct.good .tb-conduct-dot { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.tb-conduct.mid { color: var(--amber-soft); border-color: rgba(228, 169, 74, 0.4); }
+.tb-conduct.mid .tb-conduct-dot { background: var(--amber); }
+.tb-conduct.bad { color: var(--rose); border-color: rgba(224, 98, 119, 0.4); }
+.tb-conduct.bad .tb-conduct-dot { background: var(--rose); box-shadow: 0 0 8px var(--rose); }
+
+.ending-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  min-width: 84px;
+}
+.stat-k { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.stat-v { font-family: var(--display); font-size: 14px; color: var(--amber-soft); }
+
+.set-stats { margin: 4px 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--edge); }
+.set-stats-head { font-family: var(--display); font-size: 12px; color: var(--teal); letter-spacing: 1px; margin-bottom: 10px; }
+.set-stats .ending-stats { justify-content: flex-start; }
+.set-stats .muted { margin: 10px 0 0; }
+
+.warn-crit {
+  color: var(--rose);
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid rgba(224, 98, 119, 0.4);
+  border-radius: 8px;
+  background: rgba(224, 98, 119, 0.08);
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vn-box, .vn-hint, .toast { animation: none; transition: none; }
 }
