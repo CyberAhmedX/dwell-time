@@ -49,6 +49,7 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood.
 - **Achievements** for how you played, like keeping the evidence chain intact or closing every case right on the first try.
 - **Settings** for music and effects volume, text size, and reduced motion.
+- **Export and import saves** as a file or a short code, to back up a run or carry it to another browser or device.
 
 ## Everything here is fictional and safe
 

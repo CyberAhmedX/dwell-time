@@ -61,3 +61,67 @@ for (const dept of DEPTS) {
     for (const t of others) expect(s.done).not.toContain(t.id);
   });
 }
+
+test("a save moves to a fresh browser by file and by code", async ({ page, browser }) => {
+  test.setTimeout(2 * 60_000);
+  await page.goto(GAME);
+  await play(page, { name: "Avery", track: "network", untilChapter: 2 });
+  const before = await page.evaluate(() => ({
+    save: localStorage.getItem("dwell-time.save.v1"),
+    meta: JSON.parse(localStorage.getItem("dwell-time.meta.v1") ?? "{}"),
+  }));
+
+  // export both ways
+  await page.goto(GAME);
+  await page.getByRole("button", { name: /^Continue as / }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Export save" }).click();
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download save file" }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^dwell-time-save-Avery-\d{4}-\d{2}-\d{2}\.json$/);
+  const filePath = test.info().outputPath("save.json");
+  await download.saveAs(filePath);
+  const code = await page.getByLabel("Your save code").inputValue();
+  expect(code.startsWith("DWELL1.")).toBe(true);
+
+  const fresh = async () => {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    await p.goto(GAME);
+    await p.getByRole("button", { name: "Import a save" }).click();
+    return { ctx, p };
+  };
+  const after = (p: Page) =>
+    p.evaluate(() => ({
+      save: localStorage.getItem("dwell-time.save.v1"),
+      meta: JSON.parse(localStorage.getItem("dwell-time.meta.v1") ?? "{}"),
+    }));
+
+  // by file
+  {
+    const { ctx, p } = await fresh();
+    await p.locator("#save-file").setInputFiles(filePath);
+    await expect(p.locator(".overlay .stat-v").first()).toHaveText("Avery");
+    await p.getByRole("button", { name: "Load this save" }).click();
+    await expect(p.getByRole("button", { name: "Continue as Avery" })).toBeVisible();
+    const got = await after(p);
+    expect(got.save).toBe(before.save);
+    expect(got.meta.checkpoints).toEqual(before.meta.checkpoints);
+    await ctx.close();
+  }
+
+  // by code, pasted with a line break in the middle, after a bad paste first
+  {
+    const { ctx, p } = await fresh();
+    await p.getByLabel("Save code").fill(code.slice(0, 200));
+    await p.getByRole("button", { name: "Load code" }).click();
+    await expect(p.locator(".transfer-error")).toContainText("damaged or cut short");
+    await p.getByLabel("Save code").fill(`${code.slice(0, 300)}\n${code.slice(300)}`);
+    await p.getByRole("button", { name: "Load code" }).click();
+    await p.getByRole("button", { name: "Load this save" }).click();
+    expect((await after(p)).save).toBe(before.save);
+    // and it plays on from where it was: the start of chapter two
+    await p.getByRole("button", { name: "Continue as Avery" }).click();
+    await expect(p.locator(".vn-text")).toContainText("Overcast now.");
+    await ctx.close();
+  }
+});

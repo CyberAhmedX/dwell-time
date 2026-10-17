@@ -38,6 +38,7 @@ import {
   canSelectChapter,
 } from "../engine/meta";
 import { ACHIEVEMENTS, checkAchievements } from "../engine/achievements";
+import { makeBundle, bundleToCode, bundleToFile, readSave, fileName } from "../engine/transfer";
 import { OfficeScene } from "../scene/office";
 import { drawPortrait } from "../scene/portraits";
 import { audio } from "../audio/audio";
@@ -251,7 +252,14 @@ export class App {
       });
       extras.append(rec);
     }
-    if (extras.childElementCount > 0) card.append(extras);
+    // someone arriving on a new device brings their save with them
+    const imp = el("button", { class: "btn ghost small", type: "button", text: "Import a save" });
+    imp.addEventListener("click", () => {
+      audio.click();
+      this.openImport();
+    });
+    extras.append(imp);
+    card.append(extras);
 
     this.stage.className = "stage center";
     mount(this.stage, card);
@@ -1171,6 +1179,19 @@ export class App {
       this.openRecord();
     });
 
+    const exportBtn = el("button", { class: "btn ghost", type: "button", text: "Export save" });
+    exportBtn.addEventListener("click", () => {
+      audio.click();
+      close();
+      this.openExport();
+    });
+    const importBtn = el("button", { class: "btn ghost", type: "button", text: "Import save" });
+    importBtn.addEventListener("click", () => {
+      audio.click();
+      close();
+      this.openImport();
+    });
+
     const statsBlock = this.s.hired
       ? el("div", { class: "set-stats" }, [
           el("div", { class: "set-stats-head", text: "Your record" }),
@@ -1221,6 +1242,10 @@ export class App {
         },
       ),
       el("div", { class: "set-row" }, [record]),
+      el("div", { class: "set-row" }, [
+        el("span", { class: "set-label", text: "Your save lives in this browser. Export it as a backup, or to carry on somewhere else." }),
+        el("div", { class: "btn-row" }, [exportBtn, importBtn]),
+      ]),
       el("div", { class: "set-about" }, [
         el("p", { text: "Dwell Time is a work of fiction. Every company, person, address and domain is invented. It teaches real cybersecurity ideas through an imagined investigation." }),
         el("p", { class: "muted", text: "All music and sound is generated in your browser. Nothing is sampled or copied." }),
@@ -1282,6 +1307,149 @@ export class App {
       if (e.target === overlay) close();
     });
     this.root.append(overlay);
+  }
+
+  private overlay(title: string, body: HTMLElement[]): { overlay: HTMLElement; close: () => void } {
+    const overlay = el("div", { class: "overlay" });
+    const close = (): void => overlay.remove();
+    const panel = el("div", { class: "overlay-panel" }, [el("div", { class: "overlay-head" }, [el("h2", { text: title })]), ...body]);
+    overlay.append(panel);
+    panel.append(this.closeBtn(close));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    this.root.append(overlay);
+    return { overlay, close };
+  }
+
+  private openExport(): void {
+    const bundle = makeBundle(this.s, this.meta);
+    const status = el("p", { class: "transfer-status", role: "status" });
+
+    const download = el("button", { class: "btn primary", type: "button", text: "Download save file" });
+    download.addEventListener("click", () => {
+      audio.click();
+      const url = URL.createObjectURL(new Blob([bundleToFile(bundle)], { type: "application/json" }));
+      const a = el("a", { href: url, download: fileName(this.s) });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      status.textContent = "Saved to your downloads. Load it later with Import save.";
+    });
+
+    const code = el("textarea", { class: "save-code", readonly: true, rows: 4, "aria-label": "Your save code", spellcheck: "false" }) as HTMLTextAreaElement;
+    code.value = "Making your code...";
+    void bundleToCode(bundle).then((c) => (code.value = c));
+    const copy = el("button", { class: "btn ghost", type: "button", text: "Copy save code" });
+    copy.addEventListener("click", async () => {
+      audio.click();
+      code.select();
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(code.value);
+        copied = true;
+      } catch {
+        copied = document.execCommand("copy");
+      }
+      status.textContent = copied ? "Copied. Paste it somewhere safe, or into Import save on another device." : "Select the code above and copy it by hand.";
+    });
+
+    this.overlay("Export save", [
+      el("p", { class: "muted", text: "This holds your current run, your endings and achievements, chapter select and your settings." }),
+      el("div", { class: "set-row" }, [el("span", { class: "set-label", text: "As a file, for backups and other computers" }), download]),
+      el("div", { class: "set-row" }, [el("span", { class: "set-label", text: "As a code, easiest on phones" }), code, copy]),
+      status,
+    ]);
+  }
+
+  private openImport(): void {
+    const error = el("p", { class: "transfer-error", role: "alert" });
+    const step = el("div");
+
+    const file = el("input", { type: "file", accept: ".json,application/json,text/plain", class: "visually-hidden", id: "save-file" }) as HTMLInputElement;
+    const pickFile = el("button", { class: "btn ghost", type: "button", text: "Choose a save file" });
+    pickFile.addEventListener("click", () => {
+      audio.click();
+      file.click();
+    });
+    file.addEventListener("change", async () => {
+      const f = file.files?.[0];
+      file.value = "";
+      if (!f) return;
+      if (f.size > 1_000_000) {
+        error.textContent = "That file is far too big to be a Dwell Time save.";
+        return;
+      }
+      void check(await f.text());
+    });
+
+    const code = el("textarea", { class: "save-code", rows: 4, placeholder: "Paste a save code here", "aria-label": "Save code", spellcheck: "false" }) as HTMLTextAreaElement;
+    const loadCode = el("button", { class: "btn ghost", type: "button", text: "Load code" });
+    loadCode.addEventListener("click", () => {
+      audio.click();
+      void check(code.value);
+    });
+
+    const pick = el("div", {}, [
+      el("div", { class: "set-row" }, [el("span", { class: "set-label", text: "From a save file" }), pickFile, file]),
+      el("div", { class: "set-row" }, [el("span", { class: "set-label", text: "From a save code" }), code, loadCode]),
+    ]);
+    mount(step, pick);
+
+    // Show what is in the save and ask before it replaces anything.
+    const check = async (text: string): Promise<void> => {
+      const r = await readSave(text);
+      if (!r.ok) {
+        error.textContent = r.error;
+        audio.wrong();
+        return;
+      }
+      error.textContent = "";
+      const where = !r.save.hired
+        ? "Still applying"
+        : r.save.chapter >= 6
+          ? "Finished the story"
+          : (() => {
+              const plan = chapterPlan(r.save.chapter);
+              return plan ? `${plan.title}: ${plan.subtitle}` : "";
+            })();
+      const when = r.exported ? new Date(r.exported).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : "";
+      const replacing = this.s.playerName !== "" || this.meta.endings.length > 0;
+      const confirm = el("button", { class: "btn primary", type: "button", text: "Load this save" });
+      confirm.addEventListener("click", () => {
+        audio.click();
+        this.s = r.save;
+        this.meta = r.meta;
+        this.persist();
+        this.applySettings();
+        done.close();
+        this.render();
+        this.showToast("Save loaded");
+      });
+      const back = el("button", { class: "btn ghost", type: "button", text: "Choose a different save" });
+      back.addEventListener("click", () => {
+        audio.click();
+        mount(step, pick);
+      });
+      mount(
+        step,
+        el("div", { class: "ending-stats" }, [
+          stat("Name", r.save.playerName || "Not signed yet"),
+          stat("Rank", rankTitle(r.save)),
+          stat("Where", where),
+          stat("Endings", `${r.meta.endings.length} of ${ENDING_ORDER.length}`),
+        ]),
+        when ? el("p", { class: "muted", text: `Exported on ${when}.` }) : el("span"),
+        replacing
+          ? el("p", { class: "warn", text: "Loading replaces the run, endings, achievements and settings in this browser. Export yours first if you want to keep them." })
+          : el("span"),
+        el("div", { class: "btn-row" }, [confirm, back]),
+      );
+      confirm.focus();
+    };
+
+    const done = this.overlay("Import save", [step, error]);
   }
 
   private openChapterSelect(): void {
