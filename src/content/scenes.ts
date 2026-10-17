@@ -13,7 +13,8 @@ export const SCENES: Scene[] = [
       { who: "narration", text: "Port Halden. A harbor town that smells of salt, diesel, and someone's excellent bread. Rain holds off, for once." },
       { who: "narration", text: "Lanternhouse Security runs out of the old pilot station beside the lighthouse. Fourteen people keep the whole town safe: its clinic, its school, its port, its water." },
       { who: "walter", text: "There they are. Our new analyst. I'm Walter, I started this place. Coffee's terrible, people are good. Packet is the cat, Packet runs the building, we just pay rent." },
-      { who: "walter", text: "Start small. Close a few tickets. Everyone here started exactly where you are. Welcome to Lanternhouse." },
+      { who: "walter", text: "Here is the honest truth about a fourteen person shop. We hired you for your specialty, and you will live in it soon enough. But your first weeks, everyone works the whole queue. Help desk, triage, all of it." },
+      { who: "walter", text: "Nobody understands an attack on this town until they have answered its phones and read its boring tickets first. So start small, close a few, whatever team they belong to. You specialize as you climb. Welcome to Lanternhouse." },
     ],
   },
   {

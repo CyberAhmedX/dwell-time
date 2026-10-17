@@ -64,25 +64,24 @@ export class App {
   private renderTopbar(): void {
     const prog = rankProgress(this.s);
     const pct = prog.max ? 100 : Math.round((prog.have / prog.need) * 100);
-    const leftKids: HTMLElement[] = [el("span", { class: "tb-logo", text: "Dwell Time" })];
+    const left = el("div", { class: "tb-left" }, [el("span", { class: "tb-logo", text: "Dwell Time" })]);
+
+    let mid: HTMLElement;
     if (this.s.hired) {
       const con = conduct(this.s);
       const sign = this.s.integrity >= 3 ? "good" : this.s.integrity >= 0 ? "mid" : "bad";
-      leftKids.push(
+      mid = el("div", { class: "tb-rank" }, [
+        el("span", { class: "tb-rankname", text: rankTitle(this.s) }),
         el("span", { class: `tb-conduct ${sign}`, title: con.note }, [
           el("span", { class: "tb-conduct-dot" }),
           el("span", { text: con.tier }),
         ]),
-      );
+        el("div", { class: "xpbar" }, [el("div", { class: "xpfill", style: `width:${pct}%` })]),
+        el("span", { class: "tb-xp", text: prog.max ? "max rank" : `${this.s.xp} XP` }),
+      ]);
+    } else {
+      mid = el("div", { class: "tb-rank" }, [el("span", { class: "tb-rankname", text: "Applicant" })]);
     }
-    const left = el("div", { class: "tb-left" }, leftKids);
-    const mid = this.s.hired
-      ? el("div", { class: "tb-rank" }, [
-          el("span", { class: "tb-rankname", text: rankTitle(this.s) }),
-          el("div", { class: "xpbar" }, [el("div", { class: "xpfill", style: `width:${pct}%` })]),
-          el("span", { class: "tb-xp", text: prog.max ? "max rank" : `${this.s.xp} XP` }),
-        ])
-      : el("div", { class: "tb-rank" }, [el("span", { class: "tb-rankname", text: "Applicant" })]);
     const btns = el("div", { class: "tb-right" }, [
       this.s.hired ? this.iconBtn("Field Notes", () => this.openCodex()) : el("span"),
       this.iconBtn("Settings", () => this.openSettings()),
