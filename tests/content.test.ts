@@ -6,6 +6,8 @@ import { CHAPTERS } from "../src/content/chapters";
 import { CODEX } from "../src/content/codex";
 import { ENDINGS } from "../src/engine/endings";
 import { pickTargets } from "../src/engine/pick";
+import { runLine } from "../src/engine/shell";
+import { answerMatches, normalizeAnswer } from "../src/engine/answer";
 import { DEPTS } from "../src/engine/types";
 import { trackFlag } from "../src/engine/state";
 
@@ -34,7 +36,12 @@ function allText(): string[] {
     t.closingRight.forEach(push);
     for (const ev of t.evidence) {
       push(ev.label);
-      if (ev.kind === "email") {
+      if (ev.kind === "terminal") {
+        Object.entries(ev.files).forEach(([name, text]) => {
+          push(name);
+          push(text);
+        });
+      } else if (ev.kind === "email") {
         push(ev.from);
         push(ev.to);
         push(ev.subject);
@@ -76,6 +83,10 @@ function allText(): string[] {
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "spot") {
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "typed") {
+        q.answer.forEach(push);
         push(q.explainRight);
         push(q.explainWrong);
       } else {
@@ -271,7 +282,8 @@ describe("spot questions, hints and ATT&CK tags", () => {
     for (const { q } of graded) {
       if (!q.hint) continue;
       const hint = q.hint.toLowerCase();
-      const right = q.type === "single" ? [q.options[q.answer]] : q.type === "multi" ? q.answer.map((i) => q.options[i]) : [];
+      const right =
+        q.type === "single" ? [q.options[q.answer]] : q.type === "multi" ? q.answer.map((i) => q.options[i]) : q.type === "typed" ? q.answer : [];
       for (const r of right) expect(hint.includes(r.toLowerCase()), `${q.id}: hint gives away "${r}"`).toBe(false);
     }
   });
@@ -339,5 +351,33 @@ describe("track and side cases", () => {
       expect(Math.max(...swings), d).toBe(1);
       expect(Math.min(...swings), d).toBe(-1);
     }
+  });
+});
+
+describe("terminal cases", () => {
+  const typed = TICKETS.flatMap((t) => t.questions.flatMap((q) => (q.type === "typed" ? [{ t, q }] : [])));
+
+  it("every typed question's example command really finds the answer", () => {
+    for (const { t, q } of typed) {
+      if (!q.solution) continue;
+      const ev = t.evidence.find((e) => e.id === q.solution!.evidence);
+      expect(ev?.kind, `${q.id}: ${q.solution.evidence} is a terminal`).toBe("terminal");
+      if (ev?.kind !== "terminal") continue;
+      const r = runLine(q.solution.command, ev.files);
+      expect(r.error, `${q.id}: ${r.out}`).toBeFalsy();
+      expect(normalizeAnswer(r.out), `${q.id}: "${q.solution.command}" printed:\n${r.out}`).toContain(normalizeAnswer(q.answer[0]));
+    }
+  });
+
+  it("typed questions accept their own answers and refuse an empty one", () => {
+    for (const { q } of typed) {
+      for (const a of q.answer) expect(answerMatches(a, q.answer), q.id).toBe(true);
+      expect(answerMatches("  ", q.answer)).toBe(false);
+    }
+  });
+
+  it("answers are matched loosely but not wrongly", () => {
+    expect(answerMatches(" Sync-Telemetry[.]example. ", ["sync-telemetry.example"])).toBe(true);
+    expect(answerMatches("telemetry.example", ["sync-telemetry.example"])).toBe(false);
   });
 });

@@ -23,6 +23,7 @@ import {
   trackFlag,
 } from "../engine/state";
 import { pickTargets } from "../engine/pick";
+import { answerMatches } from "../engine/answer";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
 import {
   type MetaData,
@@ -497,6 +498,9 @@ export class App {
 
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
+    // count terminal commands, for the note on how directly you got there
+    let commands = 0;
+    evPanel.addEventListener("terminal-command", () => commands++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
     const submit = el("button", { class: "btn primary", type: "button", text: review ? "Back to desk" : "Submit findings" });
@@ -569,6 +573,9 @@ export class App {
           text: botched ? "Out of attempts. Read what each answer should have been, then close the case." : "Solved. Read the notes on each answer, then close the case.",
         }),
       );
+      if (commands > 0) {
+        feedback.append(el("p", { class: "muted", text: `You ran ${commands} command${commands === 1 ? "" : "s"} in the terminal.` }));
+      }
       if (t.attack?.length) feedback.append(attackTags(t));
       submit.replaceWith(done);
       done.focus();
@@ -647,6 +654,7 @@ export class App {
     panel.append(wrap);
 
     if (q.type === "spot") return this.spotQuestion(q, wrap, ctx);
+    if (q.type === "typed") return this.typedQuestion(q, wrap);
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -827,6 +835,47 @@ export class App {
     });
     box.append(b);
     return box;
+  }
+
+  private typedQuestion(q: Extract<Question, { type: "typed" }>, wrap: HTMLElement): QuestionControl {
+    const input = el("input", {
+      class: "typed-input",
+      type: "text",
+      placeholder: q.placeholder ?? "Type your answer",
+      "aria-label": q.prompt,
+      autocomplete: "off",
+      autocapitalize: "off",
+      spellcheck: "false",
+    }) as HTMLInputElement;
+    const expl = el("div", { class: "explain", hidden: true });
+    wrap.append(input, expl);
+    // editing the answer clears the right/wrong mark from the last submit
+    input.addEventListener("input", () => {
+      wrap.classList.remove("q-right", "q-wrong");
+      wrap.querySelector(".q-mark")?.remove();
+    });
+    const isRight = (): boolean => answerMatches(input.value, q.answer);
+    return {
+      ready: () => input.value.trim() !== "",
+      correct: isRight,
+      reveal: () => {
+        input.readOnly = true;
+        input.classList.toggle("right", isRight());
+        input.classList.toggle("wrong", !isRight());
+        expl.hidden = false;
+        expl.className = isRight() ? "explain good" : "explain bad";
+        const parts: HTMLElement[] = [el("p", { text: isRight() ? q.explainRight : q.explainWrong })];
+        if (!isRight()) parts.push(el("p", { class: "typed-answer", text: `Answer: ${q.answer[0]}` }));
+        if (q.solution) parts.push(el("p", { class: "typed-way" }, [el("span", { text: "One way to find it: " }), el("code", { text: q.solution.command })]));
+        mount(expl, ...parts);
+      },
+      mark: () => markBlock(wrap, isRight()),
+      apply: () => {},
+      focus: () => {
+        wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" });
+        input.focus({ preventScroll: true });
+      },
+    };
   }
 
   private spotQuestion(q: Extract<Question, { type: "spot" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
