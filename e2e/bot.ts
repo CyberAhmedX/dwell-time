@@ -151,6 +151,16 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       }
       expect(await block.locator(".ord-text").allInnerTexts()).toEqual(q.items);
       return;
+    case "typed":
+      // do it the way a player would: run the command, read the output, type the answer
+      if (q.solution) {
+        const term = page.locator(`[data-ev="${q.solution.evidence}"]`);
+        await term.locator(".term-input").fill(q.solution.command);
+        await term.locator(".term-input").press("Enter");
+        await expect(term.locator(".term-out")).toContainText(q.answer[0]);
+      }
+      await block.locator(".typed-input").fill(q.answer[0]);
+      return;
     case "spot":
       await block.locator(".spot-btn").click();
       await page.locator(`[data-ev="${q.evidence}"] [data-pick="${q.answer[0]}"]`).click();

@@ -1,6 +1,9 @@
 import type { Ticket } from "../engine/types";
 import { TRACK_TICKETS } from "./tracks";
 import { SIDE_TICKETS } from "./sides";
+import { schoolDnsLog } from "./logs";
+
+const SCHOOL_DNS = schoolDnsLog();
 
 // Investigation tickets. Every address is from a documentation range
 // (192.0.2.x, 198.51.100.x, 203.0.113.x) or a private range, every domain uses
@@ -295,29 +298,20 @@ const STORY_TICKETS: Ticket[] = [
     ],
     brief: [
       "Priya rolls her chair into your aisle.",
-      "School's firewall is screaming about one computer lab machine. Thousands of DNS lookups to one domain, all day. I have a theory but I want you to tell me what you see. No pressure. It is DNS. It is always DNS.",
+      "The school's firewall is screaming about the computer lab. Far too many DNS lookups. I copied twenty minutes of their resolver log onto an analysis box for you. Find the machine, find where it is talking to, and tell me what you see. No pressure. It is DNS. It is always DNS.",
     ],
     evidence: [
       {
-        kind: "log",
-        id: "ev_dns_queries",
-        label: "DNS query sample from lab-pc-07",
-        source: "DNS resolver log",
-        columns: ["Time", "Query", "Type"],
-        rows: [
-          ["13:00:01", "a7f3k9d2.data.sync-telemetry.example", "TXT"],
-          ["13:00:01", "x2m8q1z5.data.sync-telemetry.example", "TXT"],
-          ["13:00:02", "p9w4r7t0.data.sync-telemetry.example", "TXT"],
-          ["13:00:02", "k1n6b3v8.data.sync-telemetry.example", "TXT"],
-          ["13:00:03", "e5h2j9c4.data.sync-telemetry.example", "TXT"],
-          ["...", "(roughly 40 per second, all day)", "TXT"],
-        ],
+        kind: "terminal",
+        id: "ev_dns_box",
+        label: "Analysis box: school resolver log",
+        files: { "dns.log": SCHOOL_DNS.log },
       },
       {
         kind: "flow",
         id: "ev_dns_flow",
-        label: "Flow summary for lab-pc-07",
-        caption: "Who did this machine talk to today?",
+        label: "Firewall flow summary for the lab, today",
+        caption: "Traffic per destination from the lab's busiest machine.",
         rows: [
           { src: "lab-pc-07", dst: "DNS resolver", port: "53/udp", bytes: "88 MB" },
           { src: "lab-pc-07", dst: "school fileshare", port: "445/tcp", bytes: "2 MB" },
@@ -327,31 +321,40 @@ const STORY_TICKETS: Ticket[] = [
     ],
     questions: [
       {
-        type: "spot",
-        id: "q_dns_spot",
-        prompt: "Click the flow that carries the stolen data.",
-        evidence: "ev_dns_flow",
-        answer: ["r0"],
-        explainRight: "Right. 88 MB of DNS in a day. Name lookups are tiny, so that volume means something is riding inside them.",
-        explainWrong: "It is the 88 MB going to the DNS resolver on port 53. Lookups are tiny; that much DNS means data is hidden inside them.",
+        type: "typed",
+        id: "q_dns_host",
+        prompt: "Which machine is making far more lookups than the rest of the lab?",
+        answer: ["lab-pc-07", "10.40.7.107"],
+        placeholder: "Host name or address",
+        explainRight: "Right. Every other lab PC makes under a hundred lookups in twenty minutes. lab-pc-07 makes several hundred.",
+        explainWrong: "It is lab-pc-07. Count lookups per host and it stands far above every other machine in the lab.",
         teaches: "dns-tunnel",
-        hint: "How much traffic should name lookups need in a day? Compare each volume with what that service normally uses.",
+        hint: "Count lookups per host: cut out the host column, then sort | uniq -c | sort -rn.",
+        solution: { evidence: "ev_dns_box", command: "cut -f2 dns.log | sort | uniq -c | sort -rn | head -3" },
       },
       {
-        type: "single",
-        id: "q_dns_what",
-        prompt: "What is lab-pc-07 almost certainly doing?",
-        options: [
-          "Resolving ad servers for a browser with a bad extension",
-          "Tunneling data out inside DNS queries to one domain",
-          "Checking for software updates on a broken schedule",
-          "Running a DNS cache test the lab teacher set up",
-        ],
-        answer: 1,
-        explainRight: "Right. Long random subdomains, TXT records, 40 lookups a second, 88 MB over DNS. That is a tunnel, not browsing.",
-        explainWrong: "This is DNS tunneling. The random subdomains, TXT type, and 88 MB of DNS traffic mean data is being smuggled out inside lookups.",
+        type: "typed",
+        id: "q_dns_domain",
+        prompt: "Which domain are most of its lookups going to?",
+        answer: ["sync-telemetry.example", "data.sync-telemetry.example"],
+        placeholder: "Domain",
+        explainRight: "Right. Hundreds of TXT lookups for random names under data.sync-telemetry.example, and no name ever repeats. Each random name is a chunk of data leaving the school.",
+        explainWrong: "It is sync-telemetry.example. Strip the random first label off each name and nearly all of the machine's lookups land on data.sync-telemetry.example.",
         teaches: "dns-tunnel",
-        hint: "Real names people visit are short and repeat. These are random and never repeat.",
+        hint: "Keep only that machine's lines with grep, then look at the query column. The first part of each name is random, so cut it off with cut -d. -f2-.",
+        solution: { evidence: "ev_dns_box", command: "grep lab-pc-07 dns.log | cut -f4 | cut -d. -f2- | sort | uniq -c | sort -rn | head -3" },
+      },
+      {
+        type: "typed",
+        id: "q_dns_count",
+        prompt: "How many lookups went to that domain in these twenty minutes?",
+        answer: [String(SCHOOL_DNS.tunnelCount)],
+        placeholder: "A number",
+        explainRight: `Right, ${SCHOOL_DNS.tunnelCount}. About one every two to three seconds, for the whole sample, from one lab PC. Nobody browses like that.`,
+        explainWrong: `It is ${SCHOOL_DNS.tunnelCount}. grep -c counts the lines that match, which is one line per lookup.`,
+        teaches: "dns-tunnel",
+        hint: "grep -c counts matching lines instead of printing them.",
+        solution: { evidence: "ev_dns_box", command: "grep -c sync-telemetry dns.log" },
       },
       {
         type: "single",

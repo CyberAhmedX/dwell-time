@@ -1,6 +1,11 @@
 # Dwell Time 2.0: design
 
-Status: draft for approval. Nothing here is built yet.
+Status: approved. Being built in the order at the bottom.
+
+Approved decisions:
+- Crossing the line in chapter 4 halves the finale clock instead of forcing Dead Water.
+- The forensics timeline (chapter 3) becomes forensics-only; other teams reach the truth their own way.
+- The harbor pentest (chapter 4) becomes pentest-only; every team gets its own temptation.
 
 ## The problem
 

@@ -92,7 +92,16 @@ export interface NoteEvidence {
   lines: string[];
 }
 
+// A read-only terminal over a set of case files. See engine/shell.ts.
+export interface TerminalEvidence {
+  kind: "terminal";
+  id: string;
+  label: string;
+  files: Record<string, string>; // file name -> contents
+}
+
 export type Evidence =
+  | TerminalEvidence
   | EmailEvidence
   | LogEvidence
   | ChatEvidence
@@ -167,7 +176,23 @@ export interface DecisionQuestion {
   options: DecisionOption[]; // no single correct answer; choice drives story
 }
 
-export type Question = SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Type what you found: an address, a domain, a count. Any route to it counts.
+export interface TypedQuestion {
+  type: "typed";
+  id: string;
+  prompt: string;
+  answer: string[]; // accepted answers, compared after normalizeAnswer()
+  placeholder?: string;
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+  // one command that finds it, run against a terminal evidence item; shown after
+  // the case closes, and tests check it really does find the answer
+  solution?: { evidence: string; command: string };
+}
+
+export type Question = TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {
