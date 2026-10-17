@@ -25,6 +25,7 @@ export const ENDINGS: Record<string, Ending> = {
     title: "The Lighthouse",
     epigraph: "A light is only useful if you let people see by it.",
     rankTitle: "Lead Analyst, Lanternhouse Security",
+    hint: "Do the work properly all the way through, then tell the people who can fix it.",
     lines: [
       "You hand the whole package to St. Brennan's, to Halden Water and Light, and to the National Cyber Response Office. Chain of custody intact, every exhibit signed.",
       "The Tollkeepers lose their foothold before a single valve moves. The water stays clean.",
@@ -39,6 +40,7 @@ export const ENDINGS: Record<string, Ending> = {
     title: "Low Tide",
     epigraph: "Some houses have to come down before the tide comes in clean.",
     rankTitle: "Partner, Pier Seven Security Co-op",
+    hint: "Let the person who was wronged tell the story.",
     lines: [
       "You give Nadia what she could never get on her own: proof, gathered cleanly, that the hole was never closed.",
       "She publishes all of it. Lanternhouse does not survive the week.",
@@ -53,6 +55,7 @@ export const ENDINGS: Record<string, Ending> = {
     title: "Company Keeper",
     epigraph: "You can keep a secret or keep a conscience. Rarely both.",
     rankTitle: "Director of Operations, Lanternhouse Security",
+    hint: "Keep the company safe, whatever it costs.",
     lines: [
       "You stop the attack. You also make sure the thread back to St. Brennan's never leaves the building.",
       "Walter is grateful in the way powerful people are grateful: suddenly, generously, and with a title. Director of Operations.",
@@ -67,6 +70,7 @@ export const ENDINGS: Record<string, Ending> = {
     title: "Cracked Lens",
     epigraph: "A cracked lens still throws light. It just throws shadows too.",
     rankTitle: "Analyst, Lanternhouse Security (under review)",
+    hint: "Tell the truth, after cutting corners on the way there.",
     lines: [
       "You send everything to St. Brennan's, to Halden Water and Light, and to the National Cyber Response Office. It is the right call.",
       "It is also the moment every shortcut you took comes back to the table.",
@@ -81,6 +85,7 @@ export const ENDINGS: Record<string, Ending> = {
     title: "Dead Water",
     epigraph: "Dwell time is just the gap between the break-in and the day you admit it.",
     rankTitle: "Former Analyst",
+    hint: "Make the wrong call when the water plant is on the line.",
     lines: [
       "It gets into the plant. Not far, not for long, but far enough.",
       "Port Halden wakes to a boil-water notice and a very simple question from everyone with a microphone: who was watching?",
@@ -97,6 +102,9 @@ export const ENDINGS: Record<string, Ending> = {
 // custody and conduct to match; a compromised record behind the same report
 // leads to Cracked Lens instead. A failed finale always lands in Dead Water.
 export const LIGHTHOUSE_MIN_INTEGRITY = 3;
+
+// The order the endings gallery lists them in.
+export const ENDING_ORDER = ["lighthouse", "crackedlens", "lowtide", "keeper", "deadwater"] as const;
 
 /**
  * Resolve the ending from the final save state.

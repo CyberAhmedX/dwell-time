@@ -38,6 +38,12 @@ export class OfficeScene {
     addEventListener("resize", this.resize);
   }
 
+  /** null follows the system setting. */
+  setReducedMotion(on: boolean | null): void {
+    this.reduced = on ?? matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (this.reduced) this.flash = 0;
+  }
+
   setChapter(ch: Chapter): void {
     this.mood = MOODS[ch];
   }

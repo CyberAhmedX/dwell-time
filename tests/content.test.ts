@@ -97,6 +97,7 @@ function allText(): string[] {
     push(e.epigraph);
     e.lines.forEach(push);
     push(e.rankTitle);
+    push(e.hint);
   }
   return out;
 }

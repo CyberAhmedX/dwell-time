@@ -19,7 +19,21 @@ import {
   unlockCodex,
   xpForClose,
 } from "../engine/state";
-import { resolveEnding } from "../engine/endings";
+import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
+import {
+  type MetaData,
+  TEXT_SCALES,
+  loadMeta,
+  saveMeta,
+  wipeMeta,
+  freshMeta,
+  recordEnding,
+  recordCodex,
+  recordCheckpoint,
+  checkpointCopy,
+  canSelectChapter,
+} from "../engine/meta";
+import { ACHIEVEMENTS, checkAchievements } from "../engine/achievements";
 import { OfficeScene } from "../scene/office";
 import { drawPortrait } from "../scene/portraits";
 import { audio } from "../audio/audio";
@@ -38,6 +52,8 @@ export class App {
   private topbar: HTMLElement;
   private scene: OfficeScene;
   private s: SaveData;
+  private meta: MetaData;
+  private toasts: HTMLElement;
   // The title screen opens every visit, so returning players press Continue,
   // and that click is what lets the browser start the audio.
   private started = false;
@@ -46,9 +62,12 @@ export class App {
     this.root = root;
     this.scene = new OfficeScene(bgCanvas);
     this.s = load();
+    this.meta = loadMeta();
     this.topbar = el("div", { class: "topbar", role: "banner" });
     this.stage = el("div", { class: "stage" });
-    mount(this.root, this.topbar, this.stage);
+    this.toasts = el("div", { class: "toasts", role: "status", "aria-live": "polite" });
+    mount(this.root, this.topbar, this.stage, this.toasts);
+    this.applySettings();
     this.scene.setChapter(this.s.chapter);
     this.scene.start();
     this.render();
@@ -56,6 +75,28 @@ export class App {
 
   private persist(): void {
     save(this.s);
+    recordCodex(this.meta, this.s.codex);
+    for (const a of checkAchievements(this.s, this.meta)) this.showToast(`Achievement: ${a.title}`);
+    saveMeta(this.meta);
+  }
+
+  private applySettings(): void {
+    const set = this.meta.settings;
+    audio.setMuted(set.muted);
+    audio.setMusicVolume(set.music);
+    audio.setEffectsVolume(set.effects);
+    document.documentElement.style.setProperty("--ts", String(set.textScale));
+    const reduce = set.reducedMotion ?? matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.documentElement.classList.toggle("reduce-motion", reduce);
+    this.scene.setReducedMotion(set.reducedMotion);
+  }
+
+  // A click on the title screen is what lets the browser start the audio.
+  private startSession(): void {
+    this.started = true;
+    audio.init();
+    audio.startMusic();
+    audio.setChapter(0);
   }
 
   private portrait(key: string, size = 96): HTMLCanvasElement {
@@ -90,7 +131,9 @@ export class App {
       this.s.hired ? this.iconBtn("Field Notes", () => this.openCodex()) : el("span"),
       this.iconBtn("Settings", () => this.openSettings()),
       this.iconBtn(audio.isMuted ? "Sound off" : "Sound on", () => {
-        audio.setMuted(!audio.isMuted);
+        this.meta.settings.muted = !audio.isMuted;
+        this.applySettings();
+        saveMeta(this.meta);
         this.renderTopbar();
       }),
     ]);
@@ -132,12 +175,7 @@ export class App {
 
   // ----------------------------------------------------------------- title
   private screenTitle(): void {
-    const begin = (): void => {
-      this.started = true;
-      audio.init();
-      audio.startMusic();
-      audio.setChapter(0);
-    };
+    const begin = (): void => this.startSession();
     const resumeAvailable = this.s.playerName !== "";
 
     const nameInput = el("input", {
@@ -188,6 +226,26 @@ export class App {
     } else {
       card.append(el("label", { class: "field-label", for: "player-name", text: "Sign your application" }), nameInput, start);
     }
+
+    // Once you have finished a run, you can look back at it and replay a chapter.
+    const extras = el("div", { class: "title-extras" });
+    if (canSelectChapter(this.meta)) {
+      const pick = el("button", { class: "btn ghost small", type: "button", text: "Replay a chapter" });
+      pick.addEventListener("click", () => {
+        audio.click();
+        this.openChapterSelect();
+      });
+      extras.append(pick);
+    }
+    if (this.meta.endings.length > 0 || this.meta.achievements.length > 0) {
+      const rec = el("button", { class: "btn ghost small", type: "button", text: "Endings and achievements" });
+      rec.addEventListener("click", () => {
+        audio.click();
+        this.openRecord();
+      });
+      extras.append(rec);
+    }
+    if (extras.childElementCount > 0) card.append(extras);
 
     this.stage.className = "stage center";
     mount(this.stage, card);
@@ -318,6 +376,9 @@ export class App {
     }
     // play intro scene once
     if (!isDone(this.s, `intro_${plan.chapter}`)) {
+      // remember how the run stood when this chapter began, for chapter select
+      recordCheckpoint(this.meta, this.s);
+      saveMeta(this.meta);
       const sc = sceneById(plan.intro);
       if (sc) {
         this.playScene(sc, () => {
@@ -588,7 +649,7 @@ export class App {
         },
         mark: () => markBlock(wrap, sel === q.answer),
         apply: () => {},
-        focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
+        focus: () => wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" }),
       };
     }
 
@@ -629,7 +690,7 @@ export class App {
         },
         mark: () => markBlock(wrap, isRight()),
         apply: () => {},
-        focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
+        focus: () => wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" }),
       };
     }
 
@@ -675,7 +736,7 @@ export class App {
         },
         mark: () => markBlock(wrap, isRight()),
         apply: () => {},
-        focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
+        focus: () => wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" }),
       };
     }
 
@@ -713,7 +774,7 @@ export class App {
         });
         sv.integrity += o.integrity ?? 0;
       },
-      focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
+      focus: () => wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" }),
     };
   }
 
@@ -816,6 +877,8 @@ export class App {
   // ----------------------------------------------------------------- ending
   private screenEnding(): void {
     const ending = resolveEnding(this.s);
+    recordEnding(this.meta, ending.id);
+    this.persist();
     const lines = [
       { who: "narration", text: `Epilogue. ${ending.epigraph}` },
       ...ending.lines.map((text) => ({ who: "narration", text })),
@@ -844,10 +907,20 @@ export class App {
         this.persist();
         this.render();
       });
+      const record = el("button", { class: "btn ghost small", type: "button", text: "Endings and achievements" });
+      record.addEventListener("click", () => {
+        audio.click();
+        this.openRecord();
+      });
+      const seen = this.meta.endings.length;
+      const total = ENDING_ORDER.length;
       const endings = el("div", { class: "ending-roster" }, [
-        el("p", { class: "muted", text: "Five endings exist. Your choices this run led here. Others lead elsewhere." }),
+        el("p", {
+          class: "muted",
+          text: seen >= total ? "You have seen every ending." : `You have seen ${seen} of ${total} endings. Replay a chapter from the title screen to find the others.`,
+        }),
       ]);
-      card.append(again, endings);
+      card.append(again, record, endings);
       this.stage.className = "stage center";
       mount(this.stage, card);
     });
@@ -891,14 +964,38 @@ export class App {
   private openSettings(): void {
     const overlay = el("div", { class: "overlay" });
     const close = (): void => overlay.remove();
+    const set = this.meta.settings;
+    const changed = (): void => {
+      this.applySettings();
+      saveMeta(this.meta);
+    };
 
-    const vol = el("input", { class: "slider", type: "range", min: 0, max: 100, step: 1, value: 70, id: "vol" }) as HTMLInputElement;
-    vol.addEventListener("input", () => audio.setVolume(Number(vol.value) / 100));
+    const slider = (id: string, label: string, value: number, on: (v: number) => void): HTMLElement => {
+      const input = el("input", { class: "slider", type: "range", min: 0, max: 100, step: 1, value: Math.round(value * 100), id }) as HTMLInputElement;
+      input.addEventListener("input", () => on(Number(input.value) / 100));
+      return el("div", { class: "set-row" }, [el("label", { for: id, text: label }), input]);
+    };
 
-    const muteBtn = el("button", { class: "btn ghost", type: "button", text: audio.isMuted ? "Unmute" : "Mute" });
+    // a row of buttons where exactly one is pressed
+    const choices = <T,>(label: string, options: { text: string; value: T }[], current: T, on: (v: T) => void): HTMLElement => {
+      const group = el("div", { class: "seg", role: "group", "aria-label": label });
+      for (const o of options) {
+        const b = el("button", { class: "seg-btn", type: "button", text: o.text, "aria-pressed": String(o.value === current) });
+        b.addEventListener("click", () => {
+          audio.click();
+          group.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+          on(o.value);
+        });
+        group.append(b);
+      }
+      return el("div", { class: "set-row" }, [el("span", { class: "set-label", text: label }), group]);
+    };
+
+    const muteBtn = el("button", { class: "btn ghost", type: "button", text: set.muted ? "Unmute" : "Mute" });
     muteBtn.addEventListener("click", () => {
-      audio.setMuted(!audio.isMuted);
-      muteBtn.textContent = audio.isMuted ? "Unmute" : "Mute";
+      set.muted = !set.muted;
+      muteBtn.textContent = set.muted ? "Unmute" : "Mute";
+      changed();
       this.renderTopbar();
     });
 
@@ -907,13 +1004,37 @@ export class App {
     reset.addEventListener("click", () => {
       if (!confirming) {
         confirming = true;
-        reset.textContent = "Tap again to confirm";
+        reset.textContent = "Tap again to confirm. Endings, achievements and settings are kept";
         return;
       }
       wipe();
       this.s = freshSave();
       close();
       this.render();
+    });
+
+    const resetAll = el("button", { class: "btn danger ghost-danger", type: "button", text: "Erase everything" });
+    let confirmingAll = false;
+    resetAll.addEventListener("click", () => {
+      if (!confirmingAll) {
+        confirmingAll = true;
+        resetAll.textContent = "Tap again to erase the save, endings, achievements and settings";
+        return;
+      }
+      wipe();
+      wipeMeta();
+      this.s = freshSave();
+      this.meta = freshMeta();
+      this.applySettings();
+      close();
+      this.render();
+    });
+
+    const record = el("button", { class: "btn ghost", type: "button", text: "Endings and achievements" });
+    record.addEventListener("click", () => {
+      audio.click();
+      close();
+      this.openRecord();
     });
 
     const statsBlock = this.s.hired
@@ -934,13 +1055,135 @@ export class App {
     const panel = el("div", { class: "overlay-panel" }, [
       el("div", { class: "overlay-head" }, [el("h2", { text: "Settings" })]),
       statsBlock,
-      el("div", { class: "set-row" }, [el("label", { for: "vol", text: "Music and sound volume" }), vol]),
+      slider("vol-music", "Music and rain", set.music, (v) => {
+        set.music = v;
+        changed();
+      }),
+      slider("vol-effects", "Sound effects", set.effects, (v) => {
+        set.effects = v;
+        changed();
+      }),
       el("div", { class: "set-row" }, [muteBtn]),
+      choices(
+        "Text size",
+        TEXT_SCALES.map((v, i) => ({ text: ["Small", "Normal", "Large", "Larger"][i], value: v as number })),
+        set.textScale,
+        (v) => {
+          set.textScale = v;
+          changed();
+        },
+      ),
+      choices(
+        "Reduced motion",
+        [
+          { text: "Follow my device", value: null as boolean | null },
+          { text: "On", value: true },
+          { text: "Off", value: false },
+        ],
+        set.reducedMotion,
+        (v) => {
+          set.reducedMotion = v;
+          changed();
+        },
+      ),
+      el("div", { class: "set-row" }, [record]),
       el("div", { class: "set-about" }, [
         el("p", { text: "Dwell Time is a work of fiction. Every company, person, address and domain is invented. It teaches real cybersecurity ideas through an imagined investigation." }),
         el("p", { class: "muted", text: "All music and sound is generated in your browser. Nothing is sampled or copied." }),
       ]),
-      el("div", { class: "set-row" }, [reset]),
+      el("div", { class: "set-row danger-row" }, [reset, resetAll]),
+    ]);
+    overlay.append(panel);
+    panel.append(this.closeBtn(close));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    this.root.append(overlay);
+  }
+
+  private openRecord(): void {
+    const overlay = el("div", { class: "overlay" });
+    const close = (): void => overlay.remove();
+
+    const endings = el("div", { class: "gallery" });
+    for (const id of ENDING_ORDER) {
+      const e = ENDINGS[id];
+      const seen = this.meta.endings.includes(id);
+      endings.append(
+        el("div", { class: seen ? "gal-item seen" : "gal-item" }, [
+          el("div", { class: "gal-title", text: seen ? e.title : "Not found yet" }),
+          el("p", { class: "gal-text", text: seen ? e.epigraph : e.hint }),
+          seen ? el("p", { class: "gal-rank", text: e.rankTitle }) : el("span"),
+        ]),
+      );
+    }
+
+    const achievements = el("div", { class: "gallery" });
+    for (const a of ACHIEVEMENTS) {
+      const got = this.meta.achievements.includes(a.id);
+      achievements.append(
+        el("div", { class: got ? "gal-item seen" : "gal-item" }, [
+          el("div", { class: "gal-title", text: a.title }),
+          el("p", { class: "gal-text", text: a.desc }),
+          el("p", { class: "gal-rank", text: got ? "Earned" : "Not yet" }),
+        ]),
+      );
+    }
+
+    const panel = el("div", { class: "overlay-panel" }, [
+      el("div", { class: "overlay-head" }, [
+        el("h2", { text: "Endings" }),
+        el("span", { class: "muted", text: `${this.meta.endings.length} of ${ENDING_ORDER.length} seen` }),
+      ]),
+      endings,
+      el("div", { class: "overlay-head sub" }, [
+        el("h2", { text: "Achievements" }),
+        el("span", { class: "muted", text: `${this.meta.achievements.length} of ${ACHIEVEMENTS.length} earned` }),
+      ]),
+      achievements,
+    ]);
+    overlay.append(panel);
+    panel.append(this.closeBtn(close));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    this.root.append(overlay);
+  }
+
+  private openChapterSelect(): void {
+    const overlay = el("div", { class: "overlay" });
+    const close = (): void => overlay.remove();
+    const list = el("div", { class: "codex-list" });
+    for (const plan of CHAPTERS) {
+      const cp = this.meta.checkpoints[plan.chapter];
+      if (!cp) continue;
+      const b = el("button", { class: "btn choice", type: "button" }, [
+        el("span", { class: "cs-title", text: `${plan.title}: ${plan.subtitle}` }),
+        el("span", { class: "cs-note", text: `${cp.playerName}, ${rankTitle(cp)}, ${conduct(cp).tier} conduct` }),
+      ]);
+      let confirming = false;
+      b.addEventListener("click", () => {
+        audio.click();
+        const inProgress = this.s.playerName !== "" && this.s.chapter < 6;
+        if (inProgress && !confirming) {
+          confirming = true;
+          b.querySelector(".cs-note")!.textContent = "This replaces the run you have in progress. Tap again to confirm";
+          return;
+        }
+        const copy = checkpointCopy(this.meta, plan.chapter);
+        if (!copy) return;
+        this.s = copy;
+        this.persist();
+        close();
+        this.startSession();
+        this.render();
+      });
+      list.append(b);
+    }
+    const panel = el("div", { class: "overlay-panel" }, [
+      el("div", { class: "overlay-head" }, [el("h2", { text: "Replay a chapter" })]),
+      el("p", { class: "muted", text: "Each chapter starts with the choices you had made by then in your most recent run." }),
+      list,
     ]);
     overlay.append(panel);
     panel.append(this.closeBtn(close));
@@ -961,7 +1204,7 @@ export class App {
 
   private showToast(text: string): void {
     const t = el("div", { class: "toast", text });
-    this.root.append(t);
+    this.toasts.append(t);
     requestAnimationFrame(() => t.classList.add("show"));
     setTimeout(() => {
       t.classList.remove("show");
@@ -988,6 +1231,10 @@ function markBlock(wrap: HTMLElement, right: boolean): void {
     }, { once: true });
   }
   note.textContent = right ? "Correct" : "Not right yet";
+}
+
+function scrollMotion(): ScrollBehavior {
+  return document.documentElement.classList.contains("reduce-motion") ? "auto" : "smooth";
 }
 
 function stat(label: string, value: string): HTMLElement {
