@@ -1,0 +1,252 @@
+import type { Chapter } from "../engine/types";
+
+// Every sound in Dwell Time is synthesized at runtime with the Web Audio API.
+// Nothing is sampled or copied. The soundtrack is a slow generative pad plus a
+// sparse melody whose scale and tempo shift with the chapter: warm and major
+// early, hollow and minor by the storm.
+
+interface Palette {
+  root: number; // root frequency
+  scale: number[]; // semitone offsets
+  tempo: number; // seconds per step
+  padType: OscillatorType;
+  leadType: OscillatorType;
+  cutoff: number; // lowpass on the pad
+  leadGain: number;
+  drone: boolean;
+}
+
+const semitone = (root: number, n: number): number => root * Math.pow(2, n / 12);
+
+const PALETTES: Record<Chapter, Palette> = {
+  // cozy, lydian-ish C
+  0: { root: 130.81, scale: [0, 2, 4, 7, 9, 11], tempo: 0.62, padType: "triangle", leadType: "sine", cutoff: 1600, leadGain: 0.12, drone: false },
+  1: { root: 130.81, scale: [0, 2, 4, 7, 9], tempo: 0.6, padType: "triangle", leadType: "sine", cutoff: 1500, leadGain: 0.12, drone: false },
+  // warm major, a touch slower
+  2: { root: 123.47, scale: [0, 2, 3, 5, 7, 10], tempo: 0.66, padType: "triangle", leadType: "sine", cutoff: 1200, leadGain: 0.1, drone: false },
+  // dorian, rain
+  3: { root: 110.0, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 0.72, padType: "sawtooth", leadType: "triangle", cutoff: 900, leadGain: 0.09, drone: false },
+  // minor, tense
+  4: { root: 98.0, scale: [0, 2, 3, 5, 7, 8], tempo: 0.8, padType: "sawtooth", leadType: "triangle", cutoff: 680, leadGain: 0.08, drone: true },
+  // phrygian drone, blackout
+  5: { root: 87.31, scale: [0, 1, 3, 5, 6, 8], tempo: 0.9, padType: "sawtooth", leadType: "sine", cutoff: 520, leadGain: 0.07, drone: true },
+  // resolve
+  6: { root: 116.54, scale: [0, 2, 4, 7, 9], tempo: 0.7, padType: "triangle", leadType: "sine", cutoff: 1100, leadGain: 0.1, drone: false },
+};
+
+export class AudioEngine {
+  private ac: AudioContext | null = null;
+  private master!: GainNode;
+  private musicGain!: GainNode;
+  private rainGain!: GainNode;
+  private started = false;
+  private muted = false;
+  private volume = 0.7;
+  private palette: Palette = PALETTES[0];
+  private step = 0;
+  private nextTime = 0;
+  private timer = 0;
+
+  get isMuted(): boolean {
+    return this.muted;
+  }
+
+  /** Must be called from a user gesture (browsers block audio otherwise). */
+  init(): void {
+    if (this.ac) {
+      if (this.ac.state === "suspended") void this.ac.resume();
+      return;
+    }
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    this.ac = new Ctx();
+    this.master = this.ac.createGain();
+    this.master.gain.value = this.muted ? 0 : this.volume;
+    this.master.connect(this.ac.destination);
+
+    this.musicGain = this.ac.createGain();
+    this.musicGain.gain.value = 0.9;
+    this.musicGain.connect(this.master);
+
+    this.rainGain = this.ac.createGain();
+    this.rainGain.gain.value = 0;
+    this.rainGain.connect(this.master);
+    this.startRain();
+  }
+
+  setVolume(v: number): void {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.ac && !this.muted) this.master.gain.setTargetAtTime(this.volume, this.ac.currentTime, 0.1);
+  }
+
+  setMuted(m: boolean): void {
+    this.muted = m;
+    if (this.ac) this.master.gain.setTargetAtTime(m ? 0 : this.volume, this.ac.currentTime, 0.05);
+  }
+
+  startMusic(): void {
+    if (!this.ac || this.started) return;
+    this.started = true;
+    this.nextTime = this.ac.currentTime + 0.1;
+    const schedule = (): void => {
+      if (!this.ac) return;
+      while (this.nextTime < this.ac.currentTime + 0.3) {
+        this.scheduleStep(this.nextTime);
+        this.nextTime += this.palette.tempo;
+        this.step++;
+      }
+    };
+    this.timer = window.setInterval(schedule, 110);
+  }
+
+  stopMusic(): void {
+    clearInterval(this.timer);
+    this.started = false;
+  }
+
+  setChapter(ch: Chapter): void {
+    this.palette = PALETTES[ch];
+    if (this.ac) {
+      const rainTarget = ch >= 5 ? 0.5 : ch >= 4 ? 0.4 : ch >= 3 ? 0.28 : ch >= 2 ? 0.12 : 0;
+      this.rainGain.gain.setTargetAtTime(rainTarget, this.ac.currentTime, 1.2);
+    }
+  }
+
+  // ---- generative step ----
+  private scheduleStep(t: number): void {
+    if (!this.ac) return;
+    const p = this.palette;
+
+    // pad chord every 4 steps
+    if (this.step % 4 === 0) {
+      const degrees = [0, 2, 4];
+      degrees.forEach((d, i) => {
+        const n = p.scale[d % p.scale.length] + (d >= p.scale.length ? 12 : 0);
+        this.voice(semitone(p.root, n), t, p.tempo * 4.2, p.padType, 0.05, p.cutoff);
+        void i;
+      });
+      if (p.drone) this.voice(p.root / 2, t, p.tempo * 4.2, "sine", 0.06, 300);
+    }
+
+    // sparse lead, pentatonic walk, skips some steps for space
+    if (this.step % 2 === 0 && Math.random() > 0.35) {
+      const idx = Math.floor(Math.random() * p.scale.length);
+      const oct = Math.random() > 0.6 ? 12 : 0;
+      const freq = semitone(p.root, p.scale[idx] + 12 + oct);
+      this.voice(freq, t + 0.02, p.tempo * 1.4, p.leadType, p.leadGain, p.cutoff * 1.6, true);
+    }
+
+    // soft tick on the beat for cozy chapters
+    if (!p.drone && this.step % 4 === 2) this.blip(1200, t, 0.03, 0.015, "square");
+  }
+
+  private voice(freq: number, t: number, dur: number, type: OscillatorType, gain: number, cutoff: number, pluck = false): void {
+    if (!this.ac) return;
+    const o = this.ac.createOscillator();
+    const g = this.ac.createGain();
+    const f = this.ac.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = cutoff;
+    o.type = type;
+    o.frequency.value = freq;
+    // gentle detune for warmth
+    o.detune.value = (Math.random() - 0.5) * 6;
+    const attack = pluck ? 0.01 : 0.4;
+    const release = pluck ? dur * 0.6 : dur * 0.5;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
+    o.connect(f);
+    f.connect(g);
+    g.connect(this.musicGain);
+    o.start(t);
+    o.stop(t + dur + release + 0.05);
+  }
+
+  // ---- rain as filtered noise ----
+  private startRain(): void {
+    if (!this.ac) return;
+    const len = 2 * this.ac.sampleRate;
+    const buf = this.ac.createBuffer(1, len, this.ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+    const src = this.ac.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const f = this.ac.createBiquadFilter();
+    f.type = "bandpass";
+    f.frequency.value = 1400;
+    f.Q.value = 0.4;
+    src.connect(f);
+    f.connect(this.rainGain);
+    src.start();
+  }
+
+  // ---- UI sound effects ----
+  private blip(freq: number, t: number, dur: number, gain: number, type: OscillatorType = "sine"): void {
+    if (!this.ac) return;
+    const o = this.ac.createOscillator();
+    const g = this.ac.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g);
+    g.connect(this.master);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+
+  private now(): number {
+    return this.ac ? this.ac.currentTime : 0;
+  }
+
+  click(): void {
+    this.blip(420, this.now(), 0.05, 0.08, "triangle");
+  }
+  type(): void {
+    if (Math.random() > 0.5) this.blip(900 + Math.random() * 300, this.now(), 0.02, 0.02, "square");
+  }
+  correct(): void {
+    const t = this.now();
+    this.blip(523, t, 0.12, 0.09, "triangle");
+    this.blip(784, t + 0.09, 0.16, 0.08, "triangle");
+  }
+  wrong(): void {
+    const t = this.now();
+    this.blip(180, t, 0.18, 0.1, "sawtooth");
+    this.blip(140, t + 0.1, 0.22, 0.09, "sawtooth");
+  }
+  notify(): void {
+    const t = this.now();
+    this.blip(680, t, 0.08, 0.06, "sine");
+    this.blip(1020, t + 0.07, 0.1, 0.05, "sine");
+  }
+  rankUp(): void {
+    const t = this.now();
+    [523, 659, 784, 1047].forEach((f, i) => this.blip(f, t + i * 0.1, 0.18, 0.09, "triangle"));
+  }
+  thunder(): void {
+    if (!this.ac || this.muted) return;
+    const t = this.now();
+    const len = 1.2 * this.ac.sampleRate;
+    const buf = this.ac.createBuffer(1, len, this.ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = this.ac.createBufferSource();
+    src.buffer = buf;
+    const f = this.ac.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = 220;
+    const g = this.ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+    src.connect(f);
+    f.connect(g);
+    g.connect(this.master);
+    src.start(t);
+  }
+}
+
+export const audio = new AudioEngine();

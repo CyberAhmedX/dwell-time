@@ -1,0 +1,229 @@
+// Core data model for Dwell Time. Content is plain data so it can be unit tested.
+
+export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
+
+export const DEPTS: Dept[] = ["soc", "network", "helpdesk", "forensics", "pentest", "intel"];
+
+export const DEPT_LABEL: Record<Dept, string> = {
+  soc: "Security Operations",
+  network: "Network Engineering",
+  helpdesk: "Help Desk",
+  forensics: "Digital Forensics",
+  pentest: "Penetration Testing",
+  intel: "Threat Intelligence",
+};
+
+export type Chapter = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+// A flag is any named boolean the story sets and later reads.
+export type Flag = string;
+
+export interface Ranks {
+  readonly titles: readonly string[];
+  readonly thresholds: readonly number[]; // xp needed to reach each title index
+}
+
+// ---------- Evidence ----------
+// Each evidence item renders in its own viewer. Realistic, defanged content only.
+
+export interface EmailEvidence {
+  kind: "email";
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+  date: string;
+  subject: string;
+  headers?: Record<string, string>;
+  body: string[]; // paragraphs
+}
+
+export interface LogEvidence {
+  kind: "log";
+  id: string;
+  label: string;
+  source: string;
+  columns: string[];
+  rows: string[][];
+}
+
+export interface ChatEvidence {
+  kind: "chat";
+  id: string;
+  label: string;
+  lines: { who: string; self?: boolean; text: string; time?: string }[];
+}
+
+export interface FlowEvidence {
+  kind: "flow";
+  id: string;
+  label: string;
+  caption?: string;
+  rows: { src: string; dst: string; port: string; bytes: string; note?: string }[];
+}
+
+export interface TreeNode {
+  name: string;
+  detail?: string;
+  suspicious?: boolean;
+  children?: TreeNode[];
+}
+
+export interface TreeEvidence {
+  kind: "tree";
+  id: string;
+  label: string;
+  caption?: string;
+  root: TreeNode;
+}
+
+export interface TimelineEvidence {
+  kind: "timeline";
+  id: string;
+  label: string;
+  events: { time: string; text: string; mark?: "info" | "warn" | "bad" }[];
+}
+
+export interface NoteEvidence {
+  kind: "note";
+  id: string;
+  label: string;
+  title: string;
+  lines: string[];
+}
+
+export type Evidence =
+  | EmailEvidence
+  | LogEvidence
+  | ChatEvidence
+  | FlowEvidence
+  | TreeEvidence
+  | TimelineEvidence
+  | NoteEvidence;
+
+// ---------- Questions ----------
+
+export interface SingleQuestion {
+  type: "single";
+  id: string;
+  prompt: string;
+  options: string[];
+  answer: number;
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string; // codex entry id unlocked
+}
+
+export interface MultiQuestion {
+  type: "multi";
+  id: string;
+  prompt: string;
+  options: string[];
+  answer: number[]; // all correct indices
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+}
+
+export interface OrderQuestion {
+  type: "order";
+  id: string;
+  prompt: string;
+  items: string[]; // presented shuffled; correct order is this array order
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+}
+
+export interface DecisionOption {
+  text: string;
+  setFlags?: Flag[];
+  clearFlags?: Flag[];
+  result: string; // narrative consequence shown after choosing
+  integrity?: number; // +/- to a hidden integrity meter
+}
+
+export interface DecisionQuestion {
+  type: "decision";
+  id: string;
+  prompt: string;
+  options: DecisionOption[]; // no single correct answer; choice drives story
+}
+
+export type Question = SingleQuestion | MultiQuestion | OrderQuestion | DecisionQuestion;
+
+// ---------- Tickets ----------
+
+export interface Ticket {
+  id: string;
+  chapter: Chapter;
+  dept: Dept;
+  severity: "low" | "medium" | "high" | "critical";
+  client: string;
+  title: string;
+  brief: string[]; // intro dialogue/briefing paragraphs
+  evidence: Evidence[];
+  questions: Question[];
+  xp: number;
+  closingRight: string[]; // shown when resolved well
+  side?: boolean; // optional side quest
+  requires?: Flag[]; // only shows if all flags present
+  hideIf?: Flag[]; // hidden if any present
+  setFlags?: Flag[]; // set when ticket completed
+}
+
+// ---------- Interview ----------
+
+export interface InterviewTrack {
+  dept: Dept;
+  interviewer: string;
+  intro: string[];
+  questions: SingleQuestion[]; // scored
+  passLine: number; // min correct to be hired
+  hiredText: string[];
+  rejectedText: string[];
+}
+
+// ---------- Story scenes ----------
+
+export interface SceneLine {
+  who: string; // character key or "narration"
+  text: string;
+}
+
+export interface SceneChoice {
+  text: string;
+  setFlags?: Flag[];
+  clearFlags?: Flag[];
+  integrity?: number;
+  reply?: SceneLine[]; // immediate response lines
+}
+
+export interface Scene {
+  id: string;
+  chapter: Chapter;
+  lines: SceneLine[];
+  choice?: { prompt: string; options: SceneChoice[] };
+  requires?: Flag[];
+  hideIf?: Flag[];
+  setFlags?: Flag[];
+}
+
+// ---------- Codex ----------
+
+export interface CodexEntry {
+  id: string;
+  term: string;
+  dept: Dept | "general";
+  body: string[];
+}
+
+// ---------- Endings ----------
+
+export interface Ending {
+  id: string;
+  title: string;
+  epigraph: string;
+  lines: string[];
+  rankTitle: string;
+}

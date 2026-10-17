@@ -1,0 +1,756 @@
+import type { Ticket } from "../engine/types";
+
+// Investigation tickets. Every address is from a documentation range
+// (192.0.2.x, 198.51.100.x, 203.0.113.x) or a private range, every domain uses
+// the reserved .example / .test TLD, and URLs are defanged. Nothing here points
+// at a real system. The scenarios are built to teach by doing.
+
+export const TICKETS: Ticket[] = [
+  // ------------------------------------------------------------------ CH 1
+  {
+    id: "t1_bakery_phish",
+    chapter: 1,
+    dept: "helpdesk",
+    severity: "medium",
+    client: "Brightloaf Bakery Co.",
+    title: "Weird email from the owner",
+    xp: 40,
+    brief: [
+      "Theo drops a sticky note on your monitor.",
+      "First real one. Brightloaf's office manager forwarded this and asked if it is legit. Have a look, tell me what you see, and what she should do.",
+    ],
+    evidence: [
+      {
+        kind: "email",
+        id: "ev_phish_mail",
+        label: "Forwarded email",
+        from: "Gregor Brightloaf <gregor.brightloaf@brightloaf-payroll.example>",
+        to: "Office Manager <m.okonkwo@brightloaf.example>",
+        date: "Mon 08:14",
+        subject: "URGENT need this done before I board",
+        headers: {
+          "Reply-To": "gregor.pay@mailbox-portal.test",
+          "Return-Path": "bounce@mailbox-portal.test",
+          "Display name": "Gregor Brightloaf",
+        },
+        body: [
+          "Hi, I'm about to get on a flight and can't take calls.",
+          "I need you to settle an urgent supplier invoice today. Reply here and I'll send the account details. Don't loop in finance, it's time sensitive and confidential.",
+          "Sent from my phone",
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_phish_realaddr",
+        label: "Address book check",
+        title: "Gregor's real address on file",
+        lines: [
+          "Directory entry: gregor@brightloaf.example",
+          "The email claims to come from: gregor.brightloaf@brightloaf-payroll.example",
+          "Reply-To points somewhere else again: gregor.pay@mailbox-portal.test",
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "multi",
+        id: "q_phish_signs",
+        prompt: "Select every warning sign in this email.",
+        options: [
+          "Urgency and pressure to act before a flight",
+          "Sender domain does not match the real one on file",
+          "Reply-To points to a third, unrelated address",
+          "Asks to keep finance out of the loop",
+          "It says 'Sent from my phone'",
+        ],
+        answer: [0, 1, 2, 3],
+        explainRight: "Good eye. Manufactured urgency, a lookalike sender domain, a mismatched Reply-To, and an attempt to bypass normal process. 'Sent from my phone' is just a signature, harmless on its own.",
+        explainWrong: "The red flags are the urgency, the mismatched sender domain, the odd Reply-To, and the request to skip finance. 'Sent from my phone' is just a signature and proves nothing either way.",
+        teaches: "phishing",
+      },
+      {
+        type: "single",
+        id: "q_phish_action",
+        prompt: "What should the office manager do?",
+        options: [
+          "Reply and ask for the account details",
+          "Pay it quietly to be safe",
+          "Verify with Gregor on a known phone number and report the email, do not reply",
+          "Forward it to the whole company",
+        ],
+        answer: 2,
+        explainRight: "Exactly. Verify through a channel you already trust, and report it. Never reply to the suspicious message itself.",
+        explainWrong: "Verify with Gregor using a number you already have, and report the email. Replying only tells the sender a human is reading.",
+        teaches: "phishing",
+      },
+    ],
+    closingRight: [
+      "Theo reads your note and exhales.",
+      "Textbook. She almost wired four thousand dollars to 'a supplier'. You just saved Brightloaf a very bad Monday. That is the job.",
+    ],
+    setFlags: ["seen_brightloaf"],
+  },
+  {
+    id: "t1_printer",
+    chapter: 1,
+    dept: "helpdesk",
+    severity: "low",
+    client: "Halden Unified School District",
+    title: "The library printer has a virus (allegedly)",
+    xp: 20,
+    side: true,
+    brief: [
+      "Theo is trying not to laugh.",
+      "The school librarian is certain the printer is infected because it printed forty pages of symbols. Take it. Gently. She is lovely and she is also wrong.",
+    ],
+    evidence: [
+      {
+        kind: "note",
+        id: "ev_printer_note",
+        label: "Librarian's report",
+        title: "What happened",
+        lines: [
+          "Printer spat out 40 pages of garbled characters starting with %!PS-Adobe-3.0",
+          "Happened right after a student sent a document from an old laptop",
+          "No other symptoms. Printer otherwise fine.",
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_printer",
+        prompt: "The pages begin with %!PS-Adobe. What actually happened?",
+        options: [
+          "A virus is printing its code",
+          "The printer received raw PostScript as text instead of printing it, usually a wrong driver",
+          "The student is a hacker",
+          "The printer is haunted",
+        ],
+        answer: 1,
+        explainRight: "Right. That header is PostScript. The printer printed the page description instead of rendering it, almost always a driver mismatch. Not a virus.",
+        explainWrong: "That %!PS-Adobe header is PostScript, the language that describes the page. The printer printed it as text, a classic wrong-driver issue, not malware.",
+        teaches: "false-positive",
+      },
+    ],
+    closingRight: [
+      "You fix the driver and print her a clean test page of library cats.",
+      "Theo nods sagely. Most days are this. Then some days are not. Enjoy the ones that are.",
+    ],
+  },
+
+  // ------------------------------------------------------------------ CH 2
+  {
+    id: "t2_bakery_bec",
+    chapter: 2,
+    dept: "soc",
+    severity: "high",
+    client: "Brightloaf Bakery Co.",
+    title: "Invoices going missing in finance",
+    xp: 70,
+    requires: ["seen_brightloaf"],
+    brief: [
+      "Mags waves you over without turning around.",
+      "Brightloaf again. Finance says suppliers claim they sent invoices nobody received. Smells like someone is in a mailbox. Here is the account's activity. Read it before you decide anything.",
+    ],
+    evidence: [
+      {
+        kind: "log",
+        id: "ev_bec_logins",
+        label: "Sign-in log: finance@brightloaf.example",
+        source: "Mail service audit log",
+        columns: ["Time", "Source IP", "Location", "Result"],
+        rows: [
+          ["Tue 09:02", "198.51.100.23", "Port Halden", "Success"],
+          ["Tue 09:40", "198.51.100.23", "Port Halden", "Success"],
+          ["Wed 02:11", "203.0.113.77", "Unknown (VPS range)", "Success"],
+          ["Wed 02:12", "203.0.113.77", "Unknown (VPS range)", "Rule created"],
+          ["Wed 09:05", "198.51.100.23", "Port Halden", "Success"],
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_bec_rule",
+        label: "New mailbox rule",
+        title: "Rule created Wed 02:12 from 203.0.113.77",
+        lines: [
+          "Name: '.' (a single dot, easy to miss in a list)",
+          "If subject or body contains: invoice, payment, bank, remittance",
+          "Then: forward to external address store-receipts@mailbox-portal.test, then mark as read, then move to RSS Subscriptions folder",
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_bec_context",
+        label: "Reminder from last week",
+        title: "Brightloaf phishing",
+        lines: [
+          "Last week finance was targeted by a phishing email spoofing the owner.",
+          "Reply-To then was gregor.pay@mailbox-portal.test.",
+          "Same mailbox-portal.test domain now receives the forwarded invoices.",
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_bec_what",
+        prompt: "What is going on with this mailbox?",
+        options: [
+          "Normal email, nothing wrong",
+          "Business email compromise: an intruder is logged in and hiding invoice mail with a forwarding rule",
+          "The finance team is forgetful",
+          "A full ransomware attack",
+        ],
+        answer: 1,
+        explainRight: "Correct. A login from a hosting range at 2am, then a sneaky rule that forwards and hides anything about invoices. Classic business email compromise.",
+        explainWrong: "This is business email compromise. The 2am login from a hosting provider and the rule that forwards and buries invoice mail give it away.",
+        teaches: "forwarding-rule",
+      },
+      {
+        type: "order",
+        id: "q_bec_steps",
+        prompt: "Order your response, first step at the top.",
+        items: [
+          "Reset the finance account password and sign out all sessions",
+          "Delete the malicious forwarding rule",
+          "Check whether any payments already went to the wrong account",
+          "Warn finance and suppliers to confirm bank details by phone",
+        ],
+        explainRight: "Good sequence. Lock the attacker out first, then remove their rule, then assess money already lost, then stop future losses with a warning.",
+        explainWrong: "Lock them out first (password plus sign-out), then kill the rule, then check for payments already diverted, then warn people. Containment before cleanup before assessment before prevention.",
+        teaches: "forwarding-rule",
+      },
+      {
+        type: "single",
+        id: "q_bec_link",
+        prompt: "The forwarding address and last week's phishing use the same domain, mailbox-portal.test. What does that tell you?",
+        options: [
+          "Coincidence, ignore it",
+          "The two incidents are probably linked, worth flagging to threat intel",
+          "Brightloaf is attacking itself",
+          "Nothing can ever be linked",
+        ],
+        answer: 1,
+        explainRight: "Right. A shared indicator across two incidents is a thread. Juno in threat intel will want this.",
+        explainWrong: "A shared domain across both incidents is a connecting thread, not a coincidence. That overlap is exactly what threat intel tracks.",
+        teaches: "ioc",
+      },
+    ],
+    closingRight: [
+      "Mags actually turns around this time.",
+      "Clean work. You contained it in the right order and you spotted the reuse. I am flagging mailbox-portal.test to Juno. This is the second time that name has come up. I do not love second times.",
+    ],
+    setFlags: ["bec_linked", "saw_portal_domain"],
+  },
+  {
+    id: "t2_school_dns",
+    chapter: 2,
+    dept: "network",
+    severity: "high",
+    client: "Halden Unified School District",
+    title: "A lab PC that will not stop talking",
+    xp: 70,
+    brief: [
+      "Priya rolls her chair into your aisle.",
+      "School's firewall is screaming about one computer lab machine. Thousands of DNS lookups to one domain, all day. I have a theory but I want you to tell me what you see. No pressure. It is DNS. It is always DNS.",
+    ],
+    evidence: [
+      {
+        kind: "log",
+        id: "ev_dns_queries",
+        label: "DNS query sample from lab-pc-07",
+        source: "DNS resolver log",
+        columns: ["Time", "Query", "Type"],
+        rows: [
+          ["13:00:01", "a7f3k9d2.data.sync-telemetry.example", "TXT"],
+          ["13:00:01", "x2m8q1z5.data.sync-telemetry.example", "TXT"],
+          ["13:00:02", "p9w4r7t0.data.sync-telemetry.example", "TXT"],
+          ["13:00:02", "k1n6b3v8.data.sync-telemetry.example", "TXT"],
+          ["13:00:03", "e5h2j9c4.data.sync-telemetry.example", "TXT"],
+          ["...", "(roughly 40 per second, all day)", "TXT"],
+        ],
+      },
+      {
+        kind: "flow",
+        id: "ev_dns_flow",
+        label: "Flow summary for lab-pc-07",
+        caption: "Who did this machine talk to today?",
+        rows: [
+          { src: "lab-pc-07", dst: "DNS resolver", port: "53/udp", bytes: "88 MB", note: "huge for DNS" },
+          { src: "lab-pc-07", dst: "school fileshare", port: "445/tcp", bytes: "2 MB", note: "normal" },
+          { src: "lab-pc-07", dst: "update server", port: "443/tcp", bytes: "40 MB", note: "normal" },
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_dns_what",
+        prompt: "What is lab-pc-07 almost certainly doing?",
+        options: [
+          "Browsing the web normally",
+          "DNS tunneling: smuggling data out inside DNS queries to an attacker domain",
+          "Downloading a game",
+          "Nothing unusual",
+        ],
+        answer: 1,
+        explainRight: "Right. Long random subdomains, TXT records, 40 lookups a second, 88 MB over DNS. That is a tunnel, not browsing.",
+        explainWrong: "This is DNS tunneling. The random subdomains, TXT type, and 88 MB of DNS traffic mean data is being smuggled out inside lookups.",
+        teaches: "dns-tunnel",
+      },
+      {
+        type: "single",
+        id: "q_dns_why_dns",
+        prompt: "Why would an attacker choose DNS for this?",
+        options: [
+          "DNS is encrypted and safe",
+          "DNS is almost always allowed out through the firewall, so it slips past controls that block other traffic",
+          "DNS is faster than everything",
+          "There is no reason",
+        ],
+        answer: 1,
+        explainRight: "Exactly. Block DNS and the whole network breaks, so it is left open, which makes it a tempting smuggling route.",
+        explainWrong: "DNS is left open on almost every network because things break without it. That near-universal allowance is exactly why it gets abused as a tunnel.",
+        teaches: "dns-tunnel",
+      },
+      {
+        type: "order",
+        id: "q_dns_steps",
+        prompt: "Order your response.",
+        items: [
+          "Isolate lab-pc-07 from the network",
+          "Block the domain sync-telemetry.example at the resolver",
+          "Capture the machine for forensics before anyone wipes it",
+          "Hunt for the same domain or pattern on other machines",
+        ],
+        explainRight: "Good. Contain the host, cut the channel, preserve it for forensics, then hunt for spread. Stop the bleeding, then investigate, then widen.",
+        explainWrong: "Isolate the host, block the domain, preserve the machine for forensics, then hunt for the pattern elsewhere. Contain, cut, preserve, hunt.",
+        teaches: "dns-tunnel",
+      },
+    ],
+    closingRight: [
+      "Priya pumps a fist.",
+      "DNS. I rest my case. Nice read, though, you did not just take my word for it, you checked the flow. That matters. The domain is blocked and the box is bagged for Imani.",
+    ],
+    setFlags: ["dns_case"],
+  },
+
+  // ------------------------------------------------------------------ CH 3
+  {
+    id: "t3_clinic_image",
+    chapter: 3,
+    dept: "forensics",
+    severity: "high",
+    client: "St. Brennan's Clinic",
+    title: "The clinic laptop",
+    xp: 90,
+    brief: [
+      "Dr. Vance hands you nitrile gloves, which feels dramatic for a laptop.",
+      "St. Brennan's sent us a machine they think was involved in something. Before we learn anything from it, we do this properly. How we handle it now decides whether anything we find is worth the paper it is printed on.",
+    ],
+    evidence: [
+      {
+        kind: "note",
+        id: "ev_clinic_intake",
+        label: "Evidence intake form",
+        title: "Item 2026-03-14-01",
+        lines: [
+          "Received: one laptop, powered off, from St. Brennan's Clinic IT.",
+          "Seal: intact. Tag signed by courier and by you on receipt.",
+          "No examination performed yet.",
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_clinic_choice",
+        label: "Walter's message",
+        title: "From Walter, marked urgent",
+        lines: [
+          "Just get into it and tell me what's on it, skip the imaging and paperwork for now, the clinic is an old friend and they're panicking.",
+          "We can document it later if we need to.",
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_clinic_first",
+        prompt: "What do you do first with the laptop?",
+        options: [
+          "Boot it and browse the files to answer Walter fast",
+          "Make a verified forensic image and work only on the copy",
+          "Delete anything suspicious",
+          "Install your tools onto it",
+        ],
+        answer: 1,
+        explainRight: "Correct. Image first, verify with a hash, never touch the original again. Booting it would change it and taint the evidence.",
+        explainWrong: "You image it first and verify the copy with a hash, then examine only the copy. Booting the original alters it and can ruin the case.",
+        teaches: "chain-of-custody",
+      },
+      {
+        type: "decision",
+        id: "q_clinic_walter",
+        prompt: "Walter wants you to skip imaging and documentation to move faster. What do you do?",
+        options: [
+          {
+            text: "Follow proper procedure anyway: image, hash, and document every step.",
+            setFlags: ["evidence_chain_intact"],
+            integrity: 2,
+            result: "You image the drive, record the hash, and log every handoff. It takes an extra hour. If this ever goes before a regulator, it will hold.",
+          },
+          {
+            text: "Do what Walter asked and poke around the live machine now, document later.",
+            setFlags: ["evidence_chain_broken"],
+            integrity: -2,
+            result: "You boot it and look. You find things. But the moment you powered it on, timestamps changed and the original was altered. Whatever you find now carries an asterisk you cannot erase.",
+          },
+        ],
+      },
+    ],
+    closingRight: [
+      "Dr. Vance watches how you handle the drive, not what you find on it.",
+      "Remember this feeling. The pressure to cut the corner never comes from the villain. It comes from someone you like, in a hurry, for a good reason. That is what makes it dangerous.",
+    ],
+    setFlags: ["clinic_examined"],
+  },
+  {
+    id: "t3_timeline",
+    chapter: 3,
+    dept: "forensics",
+    severity: "critical",
+    client: "St. Brennan's Clinic",
+    title: "Building the timeline",
+    xp: 90,
+    requires: ["clinic_examined"],
+    brief: [
+      "Dr. Vance spreads the findings across two monitors.",
+      "Now we read what the copy tells us, in order. Sequence is everything. Let us see who did what, and when, and be very careful about that first word. Who.",
+    ],
+    evidence: [
+      {
+        kind: "timeline",
+        id: "ev_timeline",
+        label: "Reconstructed timeline",
+        events: [
+          { time: "5 years ago", text: "Remote tool 'HarborWatch' installed on clinic systems by Lanternhouse. Single shared admin login, no second factor.", mark: "info" },
+          { time: "5 years ago + 2 weeks", text: "Clinic breached. Alerts existed but were silenced in the HarborWatch console. Junior analyst on shift blamed and dismissed.", mark: "warn" },
+          { time: "recently", text: "Account 'svc_tidewatch' created on clinic server. Creator recorded as 'w.abernathy'.", mark: "bad" },
+          { time: "recently", text: "The creation request came from 203.0.113.77, a hosting provider address, not from inside Lanternhouse.", mark: "bad" },
+          { time: "recently", text: "Same 203.0.113.77 seen in the Brightloaf mailbox intrusion.", mark: "bad" },
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_cred_note",
+        label: "HarborWatch credential note",
+        title: "About that shared login",
+        lines: [
+          "HarborWatch still uses one shared admin password across all Lanternhouse clients.",
+          "Records show it has never been rotated since it was first set, five years ago.",
+          "Anyone who ever had it, or copied it, could still use it today.",
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_timeline_account",
+        prompt: "The new backdoor account 'svc_tidewatch' was created by 'w.abernathy', from a hosting address. What is the most careful reading?",
+        options: [
+          "Walter Abernathy personally created the backdoor",
+          "Someone used the w.abernathy credentials from outside; who was actually driving is still unproven",
+          "The clinic created it",
+          "The log is fake",
+        ],
+        answer: 1,
+        explainRight: "Correct. The account acted, from an outside hosting address, using a password that was never rotated. A username is not a person. That gap is the case.",
+        explainWrong: "Careful. The credentials were used from an external address. A username in a log is not proof of the person. That is the whole discipline of attribution.",
+        teaches: "attribution",
+      },
+      {
+        type: "single",
+        id: "q_timeline_root",
+        prompt: "What single failure made five years of this possible?",
+        options: [
+          "Bad luck",
+          "A shared admin password with no second factor, never rotated after a known breach",
+          "The clinic's wifi",
+          "The weather",
+        ],
+        answer: 1,
+        explainRight: "Exactly. One shared, unrotated credential with no MFA is a door that was never locked, for five years. Everything else grew from that.",
+        explainWrong: "The root cause is the shared, unrotated admin password with no MFA. After a known breach it was never fixed, leaving the door open for years.",
+        teaches: "mfa",
+      },
+      {
+        type: "single",
+        id: "q_timeline_feel",
+        prompt: "The junior analyst blamed five years ago: what does the timeline suggest about them?",
+        options: [
+          "They were guilty and deserved it",
+          "The alerts were silenced upstream, so they likely never had a fair chance to catch it",
+          "They do not matter",
+          "They caused the new attack",
+        ],
+        answer: 1,
+        explainRight: "Right. If the console suppressed the alerts, blaming the person on shift was convenient, not correct. That matters more than it looks right now.",
+        explainWrong: "The alerts were silenced in the console. Blaming the analyst on shift was convenient. Hold onto that, it will matter.",
+        teaches: "attribution",
+      },
+    ],
+    closingRight: [
+      "Dr. Vance is very still.",
+      "So. The hole was never closed, and someone who knew it was never closed is walking through it now, client by client. And five years ago we hung that on a junior. I need to think. You did good work. I wish you had not.",
+    ],
+    setFlags: ["knows_truth", "knows_harborwatch"],
+  },
+
+  // ------------------------------------------------------------------ CH 4
+  {
+    id: "t4_harbor_pentest",
+    chapter: 4,
+    dept: "pentest",
+    severity: "medium",
+    client: "Port Halden Harbor Authority",
+    title: "Authorized test, with a hard line",
+    xp: 90,
+    brief: [
+      "Rook slides a one-page scope across the desk and taps it twice.",
+      "Harbor Authority hired us to test their public booking website. Just that. Their crane and ferry controls, the OT, are explicitly out of scope. Read it. Then we talk about the part where someone always wants to touch the thing they were told not to touch.",
+    ],
+    evidence: [
+      {
+        kind: "note",
+        id: "ev_scope",
+        label: "Rules of engagement",
+        title: "Harbor Authority engagement",
+        lines: [
+          "IN SCOPE: public booking web application at booking.harbor-halden.example",
+          "IN SCOPE: the single web server hosting it (198.51.100.40)",
+          "OUT OF SCOPE: all operational technology (crane, ferry, gate controls) on the 10.20.0.0/16 network",
+          "OUT OF SCOPE: staff email and workstations",
+          "Window: weekdays 18:00 to 22:00 only. Stop immediately if anything physical responds.",
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_pentest_find",
+        label: "Finding on the web app",
+        title: "booking.harbor-halden.example",
+        lines: [
+          "The booking form does not check who you are before showing a reservation.",
+          "Changing the id in the URL from 1041 to 1042 shows someone else's booking and contact details.",
+          "This is an access control flaw (insecure direct object reference).",
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_pt_finding",
+        prompt: "You can read other people's bookings by changing a number in the URL. What is this flaw?",
+        options: [
+          "A feature",
+          "Broken access control: the app shows data without checking you are allowed to see it",
+          "A network problem",
+          "A password issue",
+        ],
+        answer: 1,
+        explainRight: "Right. The app trusts the id in the URL instead of checking permission. Change the number, see someone else's data. Broken access control.",
+        explainWrong: "This is broken access control. The app serves records based on a number in the URL without checking whether you are authorized. Classic flaw.",
+        teaches: "scope",
+      },
+      {
+        type: "decision",
+        id: "q_pt_scope",
+        prompt: "While testing, you notice you could probably reach the crane control network too. A teammate says 'they'd thank us if we proved it'. What do you do?",
+        options: [
+          {
+            text: "Stay strictly in scope. Note the exposure and recommend the client authorize a separate, careful OT test.",
+            setFlags: ["respected_scope"],
+            integrity: 2,
+            result: "You do not touch it. You write it up as an observation and recommend a properly scoped OT engagement. Rook reads it and nods once, which from Rook is a standing ovation.",
+          },
+          {
+            text: "Take a quick, careful look at the OT network, just to prove the risk.",
+            setFlags: ["crossed_scope", "left_firewall_open"],
+            integrity: -3,
+            result: "You reach across into the control network for 'just a look'. Nothing breaks. But you left a path noted, a door nudged open, and you did something nobody authorized. On an OT network, 'nothing broke' is luck, not skill.",
+          },
+        ],
+      },
+    ],
+    closingRight: [
+      "Rook collects the scope sheet and files it.",
+      "The web bug is a good find, the client will fix it. But the real test today was the other thing. Scope is not a suggestion. On OT it is the difference between a report and a flood.",
+    ],
+    setFlags: ["did_pentest"],
+  },
+  {
+    id: "t4_intel_correlate",
+    chapter: 4,
+    dept: "intel",
+    severity: "high",
+    client: "Lanternhouse (internal)",
+    title: "Connecting the threads",
+    xp: 90,
+    requires: ["knows_truth"],
+    brief: [
+      "Juno has cleared a whole wall. String everywhere.",
+      "Okay. Brightloaf, the school, the clinic. I think they are one story, not three. Help me lay it out, and help me not get ahead of the evidence. That is the hard part when the picture starts to look like a face.",
+    ],
+    evidence: [
+      {
+        kind: "note",
+        id: "ev_intel_iocs",
+        label: "Shared indicators",
+        title: "What repeats across clients",
+        lines: [
+          "203.0.113.77 (hosting provider address): seen in the Brightloaf mailbox intrusion AND the clinic backdoor creation.",
+          "mailbox-portal.test: phishing Reply-To at Brightloaf AND the invoice forwarding destination.",
+          "HarborWatch shared credential: present at every affected client, never rotated.",
+          "Behavior: quiet, patient, collecting access rather than smashing things.",
+        ],
+      },
+      {
+        kind: "chat",
+        id: "ev_intel_chat",
+        label: "Juno's working notes",
+        lines: [
+          { who: "juno", text: "So one actor, using the never-rotated HarborWatch password, touching clients one at a time." },
+          { who: "juno", text: "I want to name them. I am calling the pattern BRACKISH until we know more." },
+          { who: "you", self: true, text: "What do we actually know about who it is?" },
+          { who: "juno", text: "Honestly? That they know Lanternhouse from the inside. That is not the same as knowing their name. Hold the line there." },
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "multi",
+        id: "q_intel_links",
+        prompt: "Which facts genuinely link these incidents? Select all that hold up.",
+        options: [
+          "The same hosting address appears in two separate intrusions",
+          "The same .test domain appears in two separate incidents",
+          "The same never-rotated credential is present at every victim",
+          "They all happened in the same town, so they must be connected",
+        ],
+        answer: [0, 1, 2],
+        explainRight: "Good. Shared address, shared domain, shared credential, those are real connective evidence. 'Same town' alone proves nothing, Port Halden is small.",
+        explainWrong: "The address, the domain, and the shared credential are real links. 'Same town' is not evidence, it is just geography in a town this size.",
+        teaches: "ioc",
+      },
+      {
+        type: "single",
+        id: "q_intel_claim",
+        prompt: "Juno wants to name a suspect. The evidence shows the actor knows Lanternhouse from the inside. How far can you honestly go?",
+        options: [
+          "Name a specific person now, the pattern is obvious",
+          "Say the actor has inside knowledge and uses the old credential, and stop there until more evidence lands",
+          "Say it is definitely a nation-state",
+          "Refuse to write anything down",
+        ],
+        answer: 1,
+        explainRight: "Right. Describe the behavior and the capability honestly. Inside knowledge is a finding. A name is a claim you cannot yet support.",
+        explainWrong: "You can say the actor has inside knowledge and reuses the old credential. You cannot name a person yet. State what the evidence carries, no further.",
+        teaches: "attribution",
+      },
+    ],
+    closingRight: [
+      "Juno steps back from the wall.",
+      "One actor. Inside knowledge. The password Walter never changed. I can see the shape of a person in this string, and I am going to make myself not say the name out loud until the evidence does. That restraint? That is the job.",
+    ],
+    setFlags: ["intel_mapped"],
+  },
+
+  // ------------------------------------------------------------------ CH 5 (recon before the finale)
+  {
+    id: "t5_plant_recon",
+    chapter: 5,
+    dept: "soc",
+    severity: "critical",
+    client: "Halden Water & Light",
+    title: "Something is in the plant network",
+    xp: 100,
+    brief: [
+      "The lights are running on the emergency circuit, everything tinted red. Mags is already standing.",
+      "Water and Light just tripped our alert. Someone is moving inside their business network, toward the boundary with the control systems. This is the one that matters. Read it fast, tell me what you see, then we move.",
+    ],
+    evidence: [
+      {
+        kind: "flow",
+        id: "ev_plant_flow",
+        label: "Live flow at Water & Light",
+        caption: "Last 20 minutes",
+        rows: [
+          { src: "203.0.113.77", dst: "plant-jumpbox (business net)", port: "login", bytes: "small", note: "the same hosting address again" },
+          { src: "plant-jumpbox", dst: "historian server", port: "445/tcp", bytes: "growing", note: "reaching toward the OT boundary" },
+          { src: "plant-jumpbox", dst: "OT firewall 10.20.0.1", port: "probe", bytes: "small", note: "testing the door to the control network" },
+        ],
+      },
+      {
+        kind: "tree",
+        id: "ev_plant_tree",
+        label: "Process tree on plant-jumpbox",
+        caption: "What is running on the compromised jump box",
+        root: {
+          name: "services.host",
+          children: [
+            {
+              name: "remote-admin (HarborWatch agent)",
+              detail: "logged in as the shared admin credential",
+              suspicious: true,
+              children: [
+                { name: "network-scan", detail: "mapping the OT boundary", suspicious: true },
+                { name: "cred-collector", detail: "scraping saved logins", suspicious: true },
+              ],
+            },
+            { name: "backup-agent", detail: "scheduled, normal" },
+          ],
+        },
+      },
+    ],
+    questions: [
+      {
+        type: "single",
+        id: "q_plant_where",
+        prompt: "Where is the attacker right now, and where are they trying to go?",
+        options: [
+          "Already in the control systems, game over",
+          "In the business network on the jump box, probing the firewall toward the OT control network but not through it yet",
+          "Only sending email",
+          "Nowhere, false alarm",
+        ],
+        answer: 1,
+        explainRight: "Right. They are on the jump box in the business network, testing the OT boundary. Not through yet. That gap is the whole ballgame, and it is closing.",
+        explainWrong: "They are on the jump box in the business network, probing the firewall to the OT side, not through it yet. The boundary is still holding, for now.",
+        teaches: "ot",
+      },
+      {
+        type: "single",
+        id: "q_plant_how",
+        prompt: "How did they get onto the jump box?",
+        options: [
+          "A brand new zero day",
+          "The same never-rotated HarborWatch shared credential, from the same hosting address as before",
+          "They guessed a password",
+          "Through the printer",
+        ],
+        answer: 1,
+        explainRight: "Correct. Same address, same shared admin credential that was never rotated. The five-year-old open door, walked through one more time.",
+        explainWrong: "It is the same never-rotated HarborWatch credential from the same hosting address. Not a new flaw, the old unlocked door again.",
+        teaches: "lateral-movement",
+      },
+    ],
+    closingRight: [
+      "Mags is already pulling on her jacket.",
+      "Business network only, boundary still holding. Good. That means we still have a choice about how this ends. Conference room. Everyone. Now.",
+    ],
+    setFlags: ["finale_ready"],
+  },
+];
+
+export function ticketById(id: string): Ticket | undefined {
+  return TICKETS.find((t) => t.id === id);
+}

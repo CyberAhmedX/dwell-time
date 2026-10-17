@@ -1,0 +1,67 @@
+import type { Chapter } from "../engine/types";
+
+// How each chapter is assembled: an intro scene, the main tickets you must
+// clear to advance, optional side tickets, and the outro scenes (including the
+// decisions that steer your ending) that play before the next chapter.
+
+export interface ChapterPlan {
+  chapter: Chapter;
+  title: string;
+  subtitle: string;
+  intro: string; // scene id
+  main: string[]; // ticket ids required to advance
+  side: string[]; // optional ticket ids
+  outro: string[]; // scene ids played in order before advancing
+}
+
+export const CHAPTERS: ChapterPlan[] = [
+  {
+    chapter: 1,
+    title: "Chapter One",
+    subtitle: "Fair Weather",
+    intro: "s1_intro",
+    main: ["t1_bakery_phish"],
+    side: ["t1_printer"],
+    outro: ["s1_outro"],
+  },
+  {
+    chapter: 2,
+    title: "Chapter Two",
+    subtitle: "Overcast",
+    intro: "s2_intro",
+    main: ["t2_bakery_bec", "t2_school_dns"],
+    side: [],
+    outro: ["s2_outro"],
+  },
+  {
+    chapter: 3,
+    title: "Chapter Three",
+    subtitle: "Squall",
+    intro: "s3_intro",
+    main: ["t3_clinic_image", "t3_timeline"],
+    side: [],
+    outro: ["s3_brackish"],
+  },
+  {
+    chapter: 4,
+    title: "Chapter Four",
+    subtitle: "Gale",
+    intro: "s4_intro",
+    main: ["t4_harbor_pentest", "t4_intel_correlate"],
+    side: [],
+    outro: ["s4_walter_offer"],
+  },
+  {
+    chapter: 5,
+    title: "Chapter Five",
+    subtitle: "Storm Surge",
+    intro: "s5_intro",
+    main: ["t5_plant_recon"],
+    side: [],
+    outro: ["s5_contain", "s5_evidence"],
+  },
+];
+
+export function chapterPlan(ch: Chapter): ChapterPlan | undefined {
+  return CHAPTERS.find((c) => c.chapter === ch);
+}
