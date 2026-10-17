@@ -61,6 +61,7 @@ npm install
 npm run dev      # local dev server
 npm run build    # single self-contained HTML file in dist/
 npm run check    # lint + typecheck + tests
+npm run e2e      # plays the built game in Chromium: every ending, every track
 ```
 
 The production build is one self-contained `dist/index.html` of about 500 KB, fonts included. It makes no network requests, so it works offline and can be hosted anywhere.
@@ -76,12 +77,13 @@ src/
   content/   all writing: interviews, tickets, scenes, codex, endings
 docs/        story bible and design notes
 tests/       content house-rules and engine logic
+e2e/         a bot that plays the real game in a browser
 media/       screenshots and the demo clip
 ```
 
 ## Tech
 
-TypeScript, Vite, Vitest, ESLint. No game engine and no runtime framework. CI runs lint, typecheck and tests on every push; a successful build auto-deploys to GitHub Pages.
+TypeScript, Vite, Vitest, Playwright, ESLint. No game engine and no runtime framework. CI runs lint, typecheck and tests on every push, then plays the built game in a real browser to every ending; a successful build auto-deploys to GitHub Pages.
 
 See `CREDITS.md` for asset provenance and `PRIVACY.md` for the privacy note.
 
