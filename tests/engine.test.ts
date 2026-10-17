@@ -17,7 +17,10 @@ import {
   load,
   save,
   wipe,
+  xpForClose,
 } from "../src/engine/state";
+import { TICKETS } from "../src/content/tickets";
+import { CHAPTERS } from "../src/content/chapters";
 import { resolveEnding, ENDINGS, F, FINALE_SUCCESS, FINALE_FAILED, LIGHTHOUSE_MIN_INTEGRITY } from "../src/engine/endings";
 
 describe("ranks", () => {
@@ -120,21 +123,23 @@ describe("endings", () => {
     expect(resolveEnding(s).id).toBe(ENDINGS.lighthouse.id);
   });
 
-  it("denies The Lighthouse when integrity is too low, even with a clean report", () => {
+  it("gives Cracked Lens, not The Lighthouse, when integrity is too low for a clean report", () => {
     const s = base();
     setFlag(s, FINALE_SUCCESS);
     setFlag(s, F.reportedOut);
     setFlag(s, F.chainIntact);
     s.integrity = LIGHTHOUSE_MIN_INTEGRITY - 1;
-    expect(resolveEnding(s).id).toBe(ENDINGS.keeper.id);
+    expect(resolveEnding(s).id).toBe(ENDINGS.crackedlens.id);
   });
 
-  it("reaches Low Tide when trusting Nadia and handing her the evidence", () => {
-    const s = base();
-    setFlag(s, FINALE_SUCCESS);
-    setFlag(s, F.gaveNadia);
-    setFlag(s, F.trustNadia);
-    expect(resolveEnding(s).id).toBe(ENDINGS.lowtide.id);
+  it("reaches Low Tide whenever you hand Nadia the evidence", () => {
+    for (const trusted of [true, false]) {
+      const s = base();
+      setFlag(s, FINALE_SUCCESS);
+      setFlag(s, F.gaveNadia);
+      if (trusted) setFlag(s, F.trustNadia);
+      expect(resolveEnding(s).id).toBe(ENDINGS.lowtide.id);
+    }
   });
 
   it("falls back to Company Keeper", () => {
@@ -144,19 +149,41 @@ describe("endings", () => {
     expect(resolveEnding(s).id).toBe(ENDINGS.keeper.id);
   });
 
-  it("reporting externally without a clean chain does not reach Lighthouse", () => {
+  it("reporting externally without a clean chain gives Cracked Lens", () => {
     const s = base();
     setFlag(s, FINALE_SUCCESS);
     setFlag(s, F.reportedOut);
     setFlag(s, F.chainBroken); // chain was broken earlier
-    expect(resolveEnding(s).id).toBe(ENDINGS.keeper.id);
+    s.integrity = 10;
+    expect(resolveEnding(s).id).toBe(ENDINGS.crackedlens.id);
   });
 
-  it("all four endings are distinct and reachable", () => {
-    const ids = new Set(
-      [ENDINGS.lighthouse, ENDINGS.lowtide, ENDINGS.keeper, ENDINGS.deadwater].map((e) => e.id),
-    );
-    expect(ids.size).toBe(4);
+  it("the ending always matches the evidence choice made in the finale", () => {
+    const byChoice: [string, string[]][] = [
+      [F.reportedOut, [ENDINGS.lighthouse.id, ENDINGS.crackedlens.id]],
+      [F.gaveNadia, [ENDINGS.lowtide.id]],
+      [F.coveredUp, [ENDINGS.keeper.id]],
+    ];
+    for (const [choice, allowed] of byChoice) {
+      for (const chain of [F.chainIntact, F.chainBroken]) {
+        for (const trusted of [true, false]) {
+          for (const integrity of [-6, 0, 3, 8]) {
+            const s = base();
+            setFlag(s, FINALE_SUCCESS);
+            setFlag(s, choice);
+            setFlag(s, chain);
+            if (trusted) setFlag(s, F.trustNadia);
+            s.integrity = integrity;
+            expect(allowed).toContain(resolveEnding(s).id);
+          }
+        }
+      }
+    }
+  });
+
+  it("all five endings are distinct", () => {
+    const ids = new Set(Object.values(ENDINGS).map((e) => e.id));
+    expect(ids.size).toBe(5);
   });
 });
 
@@ -180,5 +207,24 @@ describe("conduct and accuracy", () => {
     s.totalCloses = 4;
     s.cleanCloses = 3;
     expect(accuracy(s)).toBeCloseTo(0.75);
+  });
+});
+
+describe("rank pacing", () => {
+  const main = CHAPTERS.flatMap((c) => c.main).map((id) => TICKETS.find((t) => t.id === id)!);
+  const all = CHAPTERS.flatMap((c) => [...c.main, ...c.side]).map((id) => TICKETS.find((t) => t.id === id)!);
+  const total = (list: typeof all, wrongAttempts: number) =>
+    list.reduce((sum, t) => sum + xpForClose(t.xp, { wrongAttempts, botched: false }), 0);
+
+  it("Lead Analyst is reachable by closing the main cases clean", () => {
+    expect(total(main, 0)).toBeGreaterThanOrEqual(RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1]);
+  });
+
+  it("Lead Analyst is not handed out for scraping through every case", () => {
+    expect(total(all, 1)).toBeLessThan(RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1]);
+  });
+
+  it("Senior Analyst is reachable even with one retry on every case", () => {
+    expect(total(all, 1)).toBeGreaterThanOrEqual(RANK_THRESHOLDS[RANK_THRESHOLDS.length - 2]);
   });
 });

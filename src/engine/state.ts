@@ -49,7 +49,9 @@ export const RANK_TITLES = [
   "Lead Analyst",
 ] as const;
 
-export const RANK_THRESHOLDS = [0, 1, 120, 300, 560, 900] as const;
+// Lead Analyst needs a strong run: most cases closed clean on the first try.
+// tests/engine.test.ts checks every rank stays reachable with the cases that exist.
+export const RANK_THRESHOLDS = [0, 1, 100, 250, 450, 700] as const;
 
 const SAVE_KEY = "dwell-time.save.v1";
 
@@ -94,6 +96,18 @@ export function rankProgress(save: SaveData): { have: number; need: number; max:
   const base = RANK_THRESHOLDS[idx];
   const next = RANK_THRESHOLDS[idx + 1];
   return { have: save.xp - base, need: next - base, max: false };
+}
+
+/**
+ * XP for closing a case. A clean first-try close earns a 20% bonus, one retry
+ * pays the base amount, more retries pay 60%, and a botched critical case pays
+ * a quarter.
+ */
+export function xpForClose(baseXp: number, grade: { wrongAttempts: number; botched: boolean }): number {
+  if (grade.botched) return Math.round(baseXp * 0.25);
+  if (grade.wrongAttempts === 0) return Math.round(baseXp * 1.2);
+  if (grade.wrongAttempts === 1) return baseXp;
+  return Math.round(baseXp * 0.6);
 }
 
 export function hasFlag(save: SaveData, flag: Flag): boolean {

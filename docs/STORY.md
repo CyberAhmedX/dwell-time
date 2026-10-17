@@ -62,7 +62,7 @@ Rules for all writing:
 | 3 | Squall | Rainy evening, desk lamps | Forensics |
 | 4 | Gale | Storm at night, lightning | Pentest and threat intel |
 | 5 | Storm Surge | Blackout, emergency lights | Full incident response |
-| Epilogue | One of four endings | Depends on you | |
+| Epilogue | One of five endings | Depends on you | |
 
 ## Choices that matter
 
@@ -76,12 +76,13 @@ Rules for all writing:
 | Ch4 | Walter offers you a promotion to bury the St. Brennan's link | Loyalty or integrity |
 | Ch5 | What you do with the evidence | Picks the ending |
 
-## The four endings
+## The five endings
 
-1. **The Lighthouse.** You hand everything to the client, the regulator and the National Cyber Response Office. Walter's cover-up comes out, the Tollkeepers are stopped, Nadia faces charges but her name is cleared. Lanternhouse survives under new leadership and you run the SOC. *Needs an unbroken chain of custody.*
-2. **Low Tide.** You give the evidence to Nadia and she publishes it. Lanternhouse collapses. The water stays clean. You and a few colleagues start a small co-op security shop on the pier. *Needs Nadia's trust.*
-3. **Company Keeper.** You stop the attack and bury the truth. Walter makes you Director of Operations. The office is quiet now and nobody brings their cat. *Always available.*
-4. **Dead Water.** The finale goes badly. The Tollkeepers reach the plant, the town is put under a boil-water notice, and somebody needs to take the blame. It is you, the same way it was Nadia. *Happens if the finale response fails. Earlier choices, like the open firewall door or silencing Nadia, make that much more likely.*
+1. **The Lighthouse.** You hand everything to the client, the regulator and the National Cyber Response Office. Walter's cover-up comes out, the Tollkeepers are stopped, Nadia faces charges but her name is cleared. Lanternhouse survives under new leadership and you run the SOC. *Needs an unbroken chain of custody and Principled conduct or better.*
+2. **Low Tide.** You give the evidence to Nadia and she publishes it. Lanternhouse collapses. The water stays clean. You and a few colleagues start a small co-op security shop on the pier. *Follows whenever you give Nadia the evidence.*
+3. **Company Keeper.** You stop the attack and bury the truth. Walter makes you Director of Operations. The office is quiet now and nobody brings their cat. *Follows when you keep the St. Brennan's link inside the company.*
+4. **Cracked Lens.** You report everything externally, but with a broken chain of custody or a record of cut corners. The truth still comes out, slowly, and half the exhibits are thrown out. You keep your job under review. *Follows an external report that does not qualify for The Lighthouse.*
+5. **Dead Water.** The finale goes badly. The Tollkeepers reach the plant, the town is put under a boil-water notice, and somebody needs to take the blame. It is you, the same way it was Nadia. *Happens if the finale response fails. Earlier choices, like the open firewall door or silencing Nadia, make that much more likely.*
 
 ## Rank ladder
 
