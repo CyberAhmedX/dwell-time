@@ -62,6 +62,20 @@ export const ENDINGS: Record<string, Ending> = {
       "The town is safe. You keep telling yourself that. It is even true.",
     ],
   },
+  crackedlens: {
+    id: "crackedlens",
+    title: "Cracked Lens",
+    epigraph: "A cracked lens still throws light. It just throws shadows too.",
+    rankTitle: "Analyst, Lanternhouse Security (under review)",
+    lines: [
+      "You send everything to St. Brennan's, to Halden Water and Light, and to the National Cyber Response Office. It is the right call.",
+      "It is also the moment every shortcut you took comes back to the table.",
+      "Walter's lawyers do not argue with the cover-up. They argue with you: the gaps in the evidence, the corners you cut, the calls you made when nobody was watching.",
+      "The regulator still acts. The shared password dies, St. Brennan's finally hears the truth, and Walter steps down. It takes a year instead of a week, and half the exhibits are thrown out.",
+      "Nadia is charged for the intrusions. The record about five years ago gets corrected, slowly, in a footnote nobody reads.",
+      "Mags keeps your desk for you through the review. Packet the cat sleeps on your chair, as if holding it.",
+    ],
+  },
   deadwater: {
     id: "deadwater",
     title: "Dead Water",
@@ -78,29 +92,25 @@ export const ENDINGS: Record<string, Ending> = {
   },
 };
 
-// The best ending is earned, not just chosen: you need a clean chain, an
-// external report, and conduct to match. A compromised analyst who does the
-// right thing only at the very end cannot undo the record behind them.
+// The ending always matches what you did with the evidence in the finale.
+// Reporting externally reaches The Lighthouse only with a clean chain of
+// custody and conduct to match; a compromised record behind the same report
+// leads to Cracked Lens instead. A failed finale always lands in Dead Water.
 export const LIGHTHOUSE_MIN_INTEGRITY = 3;
 
 /**
  * Resolve the ending from the final save state.
- * Order matters: a failed finale always lands in Dead Water. Otherwise the
- * strongest earned path wins, with Company Keeper as the fallback that is
- * always reachable. Integrity gates the best ending.
+ * A failed finale always lands in Dead Water. Otherwise the ending follows the
+ * evidence choice, and Company Keeper covers the cover-up (and a save with no
+ * evidence choice recorded).
  */
 export function resolveEnding(saveData: SaveData): Ending {
   if (hasFlag(saveData, FINALE_FAILED)) return ENDINGS.deadwater;
 
-  if (
-    hasFlag(saveData, F.reportedOut) &&
-    hasFlag(saveData, F.chainIntact) &&
-    saveData.integrity >= LIGHTHOUSE_MIN_INTEGRITY
-  ) {
-    return ENDINGS.lighthouse;
+  if (hasFlag(saveData, F.reportedOut)) {
+    const earned = hasFlag(saveData, F.chainIntact) && saveData.integrity >= LIGHTHOUSE_MIN_INTEGRITY;
+    return earned ? ENDINGS.lighthouse : ENDINGS.crackedlens;
   }
-  if (hasFlag(saveData, F.gaveNadia) && hasFlag(saveData, F.trustNadia)) {
-    return ENDINGS.lowtide;
-  }
+  if (hasFlag(saveData, F.gaveNadia)) return ENDINGS.lowtide;
   return ENDINGS.keeper;
 }

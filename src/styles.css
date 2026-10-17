@@ -631,3 +631,14 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 @media (prefers-reduced-motion: reduce) {
   .vn-box, .vn-hint, .toast { animation: none; transition: none; }
 }
+
+/* After a wrong submit: which answers are wrong, without showing the right option */
+.q-block.q-wrong { border-color: var(--bad); }
+.q-block.q-right { border-color: var(--good); }
+.q-mark { margin: -4px 0 10px; font-size: 13px; font-weight: 600; }
+.q-wrong .q-mark { color: var(--bad); }
+.q-right .q-mark { color: var(--good); }
+.good-note { color: var(--good); margin: 0 0 12px; }
+/* Once a case is solved, the answers are shown and can no longer be changed */
+.q-panel.done .opt, .q-panel.done .ord-arrow { pointer-events: none; }
+.vn:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; }

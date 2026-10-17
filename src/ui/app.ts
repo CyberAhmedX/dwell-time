@@ -17,6 +17,7 @@ import {
   markDone,
   isDone,
   unlockCodex,
+  xpForClose,
 } from "../engine/state";
 import { resolveEnding } from "../engine/endings";
 import { OfficeScene } from "../scene/office";
@@ -37,6 +38,9 @@ export class App {
   private topbar: HTMLElement;
   private scene: OfficeScene;
   private s: SaveData;
+  // The title screen opens every visit, so returning players press Continue,
+  // and that click is what lets the browser start the audio.
+  private started = false;
 
   constructor(root: HTMLElement, bgCanvas: HTMLCanvasElement) {
     this.root = root;
@@ -106,6 +110,10 @@ export class App {
   private render(): void {
     this.renderTopbar();
     this.scene.setChapter(this.s.chapter);
+    if (!this.started) {
+      this.screenTitle();
+      return;
+    }
     if (!this.s.hired) {
       if (!this.s.track) {
         if (this.s.playerName === "") this.screenTitle();
@@ -125,11 +133,12 @@ export class App {
   // ----------------------------------------------------------------- title
   private screenTitle(): void {
     const begin = (): void => {
+      this.started = true;
       audio.init();
       audio.startMusic();
       audio.setChapter(0);
     };
-    const resumeAvailable = this.s.playerName !== "" || this.s.track !== null;
+    const resumeAvailable = this.s.playerName !== "";
 
     const nameInput = el("input", {
       class: "name-input",
@@ -140,8 +149,18 @@ export class App {
       value: this.s.playerName,
     }) as HTMLInputElement;
 
-    const start = el("button", { class: "btn primary", type: "button", text: "Apply to Lanternhouse" });
+    const start = el("button", {
+      class: resumeAvailable ? "btn ghost" : "btn primary",
+      type: "button",
+      text: resumeAvailable ? "Start over as a new applicant" : "Apply to Lanternhouse",
+    });
+    let confirmingRestart = false;
     start.addEventListener("click", () => {
+      if (resumeAvailable && !confirmingRestart) {
+        confirmingRestart = true;
+        start.textContent = "This erases your saved game. Tap again to confirm";
+        return;
+      }
       begin();
       const name = nameInput.value.trim() || "Alex";
       this.s = freshSave();
@@ -156,24 +175,24 @@ export class App {
       el("p", { class: "title-sub", text: "how long an intruder stays before anyone notices" }),
       el("p", { class: "title-blurb", text: "You are the newest hire at Lanternhouse Security, a small firm keeping a rainy harbor town safe. Learn the trade, close the tickets, and find out what has been hiding in the quiet." },
       ),
-      el("label", { class: "field-label", for: "player-name", text: "Sign your application" }),
-      nameInput,
-      start,
     ]);
 
     if (resumeAvailable) {
-      const cont = el("button", { class: "btn ghost", type: "button", text: "Continue where you left off" });
+      const cont = el("button", { class: "btn primary", type: "button", text: `Continue as ${this.s.playerName}` });
       cont.addEventListener("click", () => {
         begin();
         audio.click();
         this.render();
       });
-      card.append(cont);
+      card.append(cont, el("label", { class: "field-label", for: "player-name", text: "Or sign a new application" }), nameInput, start);
+    } else {
+      card.append(el("label", { class: "field-label", for: "player-name", text: "Sign your application" }), nameInput, start);
     }
 
     this.stage.className = "stage center";
     mount(this.stage, card);
-    setTimeout(() => nameInput.focus(), 30);
+    const firstButton = card.querySelector("button");
+    setTimeout(() => (resumeAvailable ? firstButton?.focus() : nameInput.focus()), 30);
   }
 
   // ----------------------------------------------------------------- track
@@ -235,7 +254,7 @@ export class App {
         } else {
           // rejection is recorded. You can retry, but it goes on the board.
           this.s.interviewFails++;
-          this.showToast("Interview failed. It is on your record.");
+          this.showToast("Interview failed. It stays on your record.");
           this.s.track = null;
           this.persist();
           this.render();
@@ -427,27 +446,49 @@ export class App {
         return;
       }
       const allCorrect = controls.every((c) => c.correct());
-      controls.forEach((c) => c.reveal());
       if (!allCorrect) {
         wrong++;
         if (wrong >= maxAttempts) {
           // out of tries on a critical case: decisions still count, but the
           // investigation itself is botched.
-          controls.forEach((c) => c.apply(this.s));
           audio.wrong();
-          this.completeTicket(t, { wrongAttempts: wrong, botched: true });
+          closeCase(true);
           return;
         }
+        // Say which answers are wrong, but never which option is right, so a
+        // retry still means reading the evidence again.
+        controls.forEach((c) => c.mark());
         audio.wrong();
         const left = maxAttempts - wrong;
         const tail = critical ? ` ${left} attempt${left === 1 ? "" : "s"} left.` : "";
-        mount(feedback, el("p", { class: "warn", text: `Not quite. Read the notes in red, fix those answers, and submit again.${tail}` }));
+        mount(feedback, el("p", { class: "warn", text: `Not quite. The answers marked in red are wrong. Re-read the evidence and try again.${tail}` }));
         return;
       }
-      controls.forEach((c) => c.apply(this.s));
       audio.correct();
-      this.completeTicket(t, { wrongAttempts: wrong, botched: false });
+      closeCase(false);
     });
+
+    // Show every answer with its explanation, then leave the case on a click,
+    // so the teaching notes are actually read.
+    const closeCase = (botched: boolean): void => {
+      controls.forEach((c) => c.reveal());
+      controls.forEach((c) => c.apply(this.s));
+      qPanel.classList.add("done");
+      const done = el("button", { class: "btn primary", type: "button", text: "Close the case" });
+      done.addEventListener("click", () => {
+        audio.click();
+        this.completeTicket(t, { wrongAttempts: wrong, botched });
+      });
+      mount(
+        feedback,
+        el("p", {
+          class: botched ? "warn" : "good-note",
+          text: botched ? "Out of attempts. Read what each answer should have been, then close the case." : "Solved. Read the notes on each answer, then close the case.",
+        }),
+      );
+      submit.replaceWith(done);
+      done.focus();
+    };
 
     const body = el("div", { class: "ws-body" }, [
       el("div", { class: "ws-col ws-evidence" }, [el("div", { class: "col-label", text: "Evidence" }), evPanel]),
@@ -465,26 +506,19 @@ export class App {
     // XP scales with how cleanly you closed it. A clean first-try close earns a
     // bonus; retries dock it; a botched critical case barely pays and costs
     // integrity. Story flags always fire so the game never soft-locks.
-    let gained = 0;
     let toastMsg = "";
     if (firstTime) {
       this.s.totalCloses++;
       if (grade.botched) {
-        gained = Math.round(t.xp * 0.25);
         this.s.integrity -= 1;
         this.s.botched++;
         setFlag(this.s, `botched_${t.id}`);
         toastMsg = "Case botched";
       } else if (grade.wrongAttempts === 0) {
-        gained = Math.round(t.xp * 1.2);
         this.s.cleanCloses++;
         toastMsg = "Closed clean (+bonus XP)";
-      } else if (grade.wrongAttempts === 1) {
-        gained = t.xp;
-      } else {
-        gained = Math.round(t.xp * 0.6);
       }
-      this.s.xp += gained;
+      this.s.xp += xpForClose(t.xp, grade);
       markDone(this.s, t.id);
     }
 
@@ -548,6 +582,7 @@ export class App {
           expl.className = sel === q.answer ? "explain good" : "explain bad";
           mount(expl, el("p", { text: sel === q.answer ? q.explainRight : q.explainWrong }));
         },
+        mark: () => markBlock(wrap, sel === q.answer),
         apply: () => {},
         focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
       };
@@ -586,13 +621,16 @@ export class App {
           expl.className = isRight() ? "explain good" : "explain bad";
           mount(expl, el("p", { text: isRight() ? q.explainRight : q.explainWrong }));
         },
+        mark: () => markBlock(wrap, isRight()),
         apply: () => {},
         focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
       };
     }
 
     if (q.type === "order") {
-      const order = shuffled(q.items.map((_, i) => i));
+      // never start already in the right order, or the question answers itself
+      let order = shuffled(q.items.map((_, i) => i));
+      while (order.length > 1 && order.every((v, i) => v === i)) order = shuffled(order);
       const list = el("ol", { class: "q-order" });
       const redraw = (): void => {
         clear(list);
@@ -629,6 +667,7 @@ export class App {
           expl.className = isRight() ? "explain good" : "explain bad";
           mount(expl, el("p", { text: isRight() ? q.explainRight : q.explainWrong }));
         },
+        mark: () => markBlock(wrap, isRight()),
         apply: () => {},
         focus: () => wrap.scrollIntoView({ behavior: "smooth", block: "center" }),
       };
@@ -658,6 +697,7 @@ export class App {
       ready: () => chosen >= 0,
       correct: () => true,
       reveal: () => {},
+      mark: () => {},
       apply: (sv) => {
         const o = q.options[chosen];
         (o.setFlags ?? []).forEach((f) => setFlag(sv, f));
@@ -683,9 +723,10 @@ export class App {
     onDone: () => void,
   ): void {
     let i = 0;
-    const box = el("div", { class: "vn" });
+    const box = el("div", { class: "vn", tabindex: 0, role: "button", "aria-label": "Continue the conversation" });
     this.stage.className = "stage vn-stage";
     mount(this.stage, box);
+    box.focus({ preventScroll: true });
 
     const showLine = (): void => {
       const line = lines[i];
@@ -711,10 +752,19 @@ export class App {
         if (i < lines.length) showLine();
         else finishLines();
       };
+      box.onkeydown = (e: KeyboardEvent): void => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          box.onclick?.(new MouseEvent("click"));
+        }
+      };
     };
 
     const finishLines = (): void => {
       box.onclick = null;
+      box.onkeydown = null;
+      box.removeAttribute("tabindex");
+      box.removeAttribute("role");
       if (choice) {
         showChoice();
       } else {
@@ -741,6 +791,7 @@ export class App {
         panel.append(b);
       });
       mount(box, panel);
+      panel.querySelector("button")?.focus();
     };
 
     showLine();
@@ -775,6 +826,7 @@ export class App {
           stat("Conduct", con.tier),
           stat("Case accuracy", `${acc}%`),
           stat("Botched", String(this.s.botched)),
+          stat("Interviews failed", String(this.s.interviewFails)),
         ]),
       ]);
       const again = el("button", { class: "btn primary", type: "button", text: "Play again" });
@@ -787,7 +839,7 @@ export class App {
         this.render();
       });
       const endings = el("div", { class: "ending-roster" }, [
-        el("p", { class: "muted", text: "Four endings exist. Your choices this run led here. Others lead elsewhere." }),
+        el("p", { class: "muted", text: "Five endings exist. Your choices this run led here. Others lead elsewhere." }),
       ]);
       card.append(again, endings);
       this.stage.className = "stage center";
@@ -867,6 +919,7 @@ export class App {
             stat("Accuracy", `${Math.round(accuracy(this.s) * 100)}%`),
             stat("Clean / total", `${this.s.cleanCloses} / ${this.s.totalCloses}`),
             stat("Botched", String(this.s.botched)),
+            stat("Interviews failed", String(this.s.interviewFails)),
           ]),
           el("p", { class: "muted", text: conduct(this.s).note }),
         ])
@@ -913,6 +966,24 @@ export class App {
 
 // ----- helpers -----
 
+function markBlock(wrap: HTMLElement, right: boolean): void {
+  wrap.classList.toggle("q-right", right);
+  wrap.classList.toggle("q-wrong", !right);
+  let note = wrap.querySelector<HTMLElement>(".q-mark");
+  if (!note) {
+    note = el("p", { class: "q-mark" });
+    wrap.insertBefore(note, wrap.children[1] ?? null);
+    // the mark goes away as soon as the answer is changed
+    wrap.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest("button")) {
+        wrap.classList.remove("q-right", "q-wrong");
+        note?.remove();
+      }
+    }, { once: true });
+  }
+  note.textContent = right ? "Correct" : "Not right yet";
+}
+
 function stat(label: string, value: string): HTMLElement {
   return el("div", { class: "stat" }, [
     el("span", { class: "stat-k", text: label }),
@@ -924,6 +995,8 @@ interface QuestionControl {
   ready(): boolean;
   correct(): boolean;
   reveal(): void;
+  /** After a wrong submit: say whether this answer is right, without showing the right option. */
+  mark(): void;
   apply(save: SaveData): void;
   focus(): void;
 }

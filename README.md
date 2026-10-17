@@ -20,7 +20,7 @@
 
 ---
 
-You are the newest hire at Lanternhouse Security, a small firm keeping a rainy harbor town safe. You interview for a team, close tickets, climb from Probationary Analyst to Lead, and slowly uncover what has been hiding in the quiet. Your choices lead to one of four endings.
+You are the newest hire at Lanternhouse Security, a small firm keeping a rainy harbor town safe. You interview for a team, close tickets, climb from Probationary Analyst to Lead, and slowly uncover what has been hiding in the quiet. Your choices lead to one of five endings.
 
 ## Screenshots
 
@@ -43,7 +43,7 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **Side quests**, multiple characters, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **XP and ranks**: climb from Probationary Analyst to Lead Analyst as you close cases.
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
-- **Four endings** driven by your choices about integrity, trust, and the truth.
+- **Five endings** driven by your choices about integrity, trust, and the truth.
 
 ## Everything here is fictional and safe
 
