@@ -29,8 +29,9 @@ export const CHAPTERS: ChapterPlan[] = [
     title: "Chapter Two",
     subtitle: "Overcast",
     intro: "s2_intro",
-    main: ["t2_bakery_bec", "t2_school_dns"],
-    side: [],
+    // plus the case for your own track; the others stay hidden
+    main: ["t2_bakery_bec", "t2_school_dns", "tr_soc", "tr_network", "tr_helpdesk", "tr_forensics", "tr_pentest", "tr_intel"],
+    side: ["sd_packet"],
     outro: ["s2_outro"],
   },
   {
@@ -39,7 +40,7 @@ export const CHAPTERS: ChapterPlan[] = [
     subtitle: "Squall",
     intro: "s3_intro",
     main: ["t3_clinic_image", "t3_timeline"],
-    side: [],
+    side: ["sd_vishing"],
     outro: ["s3_brackish"],
   },
   {
@@ -48,7 +49,7 @@ export const CHAPTERS: ChapterPlan[] = [
     subtitle: "Gale",
     intro: "s4_intro",
     main: ["t4_harbor_pentest", "t4_intel_correlate"],
-    side: [],
+    side: ["sd_backups"],
     outro: ["s4_walter_offer"],
   },
   {
@@ -57,7 +58,7 @@ export const CHAPTERS: ChapterPlan[] = [
     subtitle: "Storm Surge",
     intro: "s5_intro",
     main: ["t5_plant_recon"],
-    side: [],
+    side: ["sd_keys"],
     outro: ["s5_contain", "s5_evidence"],
   },
 ];

@@ -1,11 +1,13 @@
 import type { Ticket } from "../engine/types";
+import { TRACK_TICKETS } from "./tracks";
+import { SIDE_TICKETS } from "./sides";
 
 // Investigation tickets. Every address is from a documentation range
 // (192.0.2.x, 198.51.100.x, 203.0.113.x) or a private range, every domain uses
 // the reserved .example / .test TLD, and URLs are defanged. Nothing here points
 // at a real system. The scenarios are built to teach by doing.
 
-export const TICKETS: Ticket[] = [
+const STORY_TICKETS: Ticket[] = [
   // ------------------------------------------------------------------ CH 1
   {
     id: "t1_bakery_phish",
@@ -874,6 +876,10 @@ export const TICKETS: Ticket[] = [
     setFlags: ["finale_ready"],
   },
 ];
+
+// Every case in the game: the shared story, one case per career track, and the
+// optional side cases.
+export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...SIDE_TICKETS];
 
 export function ticketById(id: string): Ticket | undefined {
   return TICKETS.find((t) => t.id === id);

@@ -194,6 +194,8 @@ export interface Ticket {
   hideIf?: Flag[]; // hidden if any present
   setFlags?: Flag[]; // set when ticket completed
   attack?: AttackTag[]; // techniques the attacker used, shown once the case is solved
+  speaker?: string; // who briefs the case, when it is not the team lead for dept
+  team?: string; // team label shown on the case, when it is not the dept's
 }
 
 // ---------- Interview ----------

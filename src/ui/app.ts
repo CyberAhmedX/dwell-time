@@ -20,6 +20,7 @@ import {
   xpForClose,
   hasFlag,
   HINT_COST,
+  trackFlag,
 } from "../engine/state";
 import { pickTargets } from "../engine/pick";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
@@ -65,6 +66,8 @@ export class App {
     this.root = root;
     this.scene = new OfficeScene(bgCanvas);
     this.s = load();
+    // saves from before track cases existed: give them their track flag
+    if (this.s.hired && this.s.track) setFlag(this.s, trackFlag(this.s.track));
     this.meta = loadMeta();
     this.topbar = el("div", { class: "topbar", role: "banner" });
     this.stage = el("div", { class: "stage" });
@@ -307,6 +310,7 @@ export class App {
       this.playDialogue(lines, undefined, () => {
         if (hired) {
           this.s.hired = true;
+          setFlag(this.s, trackFlag(iv.dept));
           this.s.chapter = 1;
           this.s.xp = 0;
           audio.rankUp();
@@ -464,7 +468,7 @@ export class App {
   // ----------------------------------------------------------------- ticket
   private openTicket(t: Ticket, review: boolean): void {
     this.playDialogue(
-      t.brief.map((text) => ({ who: briefSpeaker(t.dept), text })),
+      t.brief.map((text) => ({ who: speakerFor(t), text })),
       undefined,
       () => this.ticketWorkstation(t, review),
     );
@@ -475,7 +479,7 @@ export class App {
       el("div", {}, [
         el("div", { class: `tk-sev inline sev-${t.severity}`, text: t.severity.toUpperCase() }),
         el("h2", { class: "ws-title", text: t.title }),
-        el("div", { class: "ws-client", text: `${t.client} · ${DEPT_LABEL[t.dept]}` }),
+        el("div", { class: "ws-client", text: `${t.client} · ${t.team ?? DEPT_LABEL[t.dept]}` }),
       ]),
     ]);
 
@@ -613,9 +617,9 @@ export class App {
     const lines = grade.botched
       ? [
           { who: "narration", text: "The case closes, but not the way anyone wanted. The notes will say it took too long, and that you reached for answers instead of reading the evidence." },
-          { who: briefSpeaker(t.dept), text: "We got there. Barely. On a critical case, barely is how towns end up on the news. Learn from this one." },
+          { who: speakerFor(t), text: "We got there. Barely. On a critical case, barely is how towns end up on the news. Learn from this one." },
         ]
-      : t.closingRight.map((text) => ({ who: briefSpeaker(t.dept), text }));
+      : t.closingRight.map((text) => ({ who: speakerFor(t), text }));
 
     this.playDialogue(lines, undefined, () => {
       if (toastMsg) this.showToast(toastMsg);
@@ -1410,6 +1414,10 @@ const TRACK_PITCH: Record<Dept, string> = {
   pentest: "Break in on purpose, strictly inside the lines.",
   intel: "Connect the dots without inventing them.",
 };
+
+function speakerFor(t: Ticket): string {
+  return t.speaker ?? briefSpeaker(t.dept);
+}
 
 function briefSpeaker(dept: Dept): string {
   const map: Record<Dept, string> = {

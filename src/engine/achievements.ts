@@ -2,6 +2,8 @@ import type { SaveData } from "./state";
 import type { MetaData } from "./meta";
 import { hasFlag, rankIndex, RANK_TITLES } from "./state";
 import { ENDINGS, F } from "./endings";
+import { CODEX } from "../content/codex";
+import { CHAPTERS } from "../content/chapters";
 
 // Achievements only come from how you actually played. None of them can be
 // bought, ground out, or earned by doing something and undoing it.
@@ -57,6 +59,18 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: "No Peeking",
     desc: "Finish a run without buying a single hint.",
     earned: (s) => finished(s) && s.hintsUsed === 0,
+  },
+  {
+    id: "side_work",
+    title: "Side Work",
+    desc: "Close every side case in a single run.",
+    earned: (s) => CHAPTERS.flatMap((c) => c.side).every((id) => s.done.includes(id)),
+  },
+  {
+    id: "well_read",
+    title: "Well Read",
+    desc: "Unlock every Field Note. Some only come from one team's own case.",
+    earned: (_s, m) => CODEX.every((c) => m.codexEver.includes(c.id)),
   },
   {
     id: "every_ending",

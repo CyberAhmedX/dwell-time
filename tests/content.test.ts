@@ -6,6 +6,8 @@ import { CHAPTERS } from "../src/content/chapters";
 import { CODEX } from "../src/content/codex";
 import { ENDINGS } from "../src/engine/endings";
 import { pickTargets } from "../src/engine/pick";
+import { DEPTS } from "../src/engine/types";
+import { trackFlag } from "../src/engine/state";
 
 // Gather every string of player-facing text so we can assert house rules on it.
 function allText(): string[] {
@@ -188,6 +190,7 @@ describe("content integrity", () => {
 
   it("every ticket requirement flag is produced somewhere", () => {
     const produced = new Set<string>();
+    DEPTS.forEach((d) => produced.add(trackFlag(d))); // set when you are hired
     for (const t of TICKETS) (t.setFlags ?? []).forEach((f) => produced.add(f));
     for (const s of SCENES) {
       (s.setFlags ?? []).forEach((f) => produced.add(f));
@@ -291,5 +294,50 @@ describe("spot questions, hints and ATT&CK tags", () => {
 
   it("the ATT&CK field note exists, since closing a tagged case unlocks it", () => {
     expect(CODEX.some((c) => c.id === "attack")).toBe(true);
+  });
+});
+
+describe("track and side cases", () => {
+  it("each track has exactly one case of its own", () => {
+    for (const d of DEPTS) {
+      const own = TICKETS.filter((t) => t.requires?.includes(trackFlag(d)));
+      expect(own.length, d).toBe(1);
+      expect(own[0].dept, d).toBe(d);
+    }
+  });
+
+  it("track cases are main cases, side cases are listed as sides, in the right chapter", () => {
+    for (const ch of CHAPTERS) {
+      for (const id of ch.main) {
+        const t = TICKETS.find((x) => x.id === id)!;
+        expect(t.side, id).toBeFalsy();
+        expect(t.chapter, id).toBe(ch.chapter);
+      }
+      for (const id of ch.side) {
+        const t = TICKETS.find((x) => x.id === id)!;
+        expect(t.side, id).toBe(true);
+        expect(t.chapter, id).toBe(ch.chapter);
+      }
+    }
+  });
+
+  it("every case is reachable from some chapter", () => {
+    const listed = new Set(CHAPTERS.flatMap((c) => [...c.main, ...c.side]));
+    expect(TICKETS.filter((t) => !listed.has(t.id)).map((t) => t.id)).toEqual([]);
+  });
+
+  it("every Field Note is taught somewhere", () => {
+    const taught = new Set(TICKETS.flatMap((t) => t.questions.flatMap((q) => ("teaches" in q && q.teaches ? [q.teaches] : []))));
+    taught.add("attack"); // unlocked by closing any case with ATT&CK tags
+    expect(CODEX.filter((c) => !taught.has(c.id)).map((c) => c.id)).toEqual([]);
+  });
+
+  it("every track's own case offers the same integrity swing", () => {
+    for (const d of DEPTS) {
+      const t = TICKETS.find((x) => x.requires?.includes(trackFlag(d)))!;
+      const swings = t.questions.flatMap((q) => (q.type === "decision" ? q.options.map((o) => o.integrity ?? 0) : []));
+      expect(Math.max(...swings), d).toBe(1);
+      expect(Math.min(...swings), d).toBe(-1);
+    }
   });
 });
