@@ -112,6 +112,7 @@ export interface SingleQuestion {
   explainRight: string;
   explainWrong: string;
   teaches?: string; // codex entry id unlocked
+  hint?: string; // a nudge the player can buy with XP; never the answer
 }
 
 export interface MultiQuestion {
@@ -123,6 +124,7 @@ export interface MultiQuestion {
   explainRight: string;
   explainWrong: string;
   teaches?: string;
+  hint?: string;
 }
 
 export interface OrderQuestion {
@@ -133,6 +135,21 @@ export interface OrderQuestion {
   explainRight: string;
   explainWrong: string;
   teaches?: string;
+  hint?: string;
+}
+
+// Click the right part of an evidence item: a log row, an email header, a
+// timeline event. Keys come from pickTargets() in engine/pick.ts.
+export interface SpotQuestion {
+  type: "spot";
+  id: string;
+  prompt: string;
+  evidence: string; // evidence id within the same ticket
+  answer: string[]; // any of these keys counts as right
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
 }
 
 export interface DecisionOption {
@@ -150,7 +167,13 @@ export interface DecisionQuestion {
   options: DecisionOption[]; // no single correct answer; choice drives story
 }
 
-export type Question = SingleQuestion | MultiQuestion | OrderQuestion | DecisionQuestion;
+export type Question = SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+
+// A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
+export interface AttackTag {
+  id: string;
+  name: string;
+}
 
 // ---------- Tickets ----------
 
@@ -170,6 +193,7 @@ export interface Ticket {
   requires?: Flag[]; // only shows if all flags present
   hideIf?: Flag[]; // hidden if any present
   setFlags?: Flag[]; // set when ticket completed
+  attack?: AttackTag[]; // techniques the attacker used, shown once the case is solved
 }
 
 // ---------- Interview ----------

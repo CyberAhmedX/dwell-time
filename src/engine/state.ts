@@ -16,6 +16,7 @@ export interface SaveData {
   totalCloses: number; // cases closed overall (graded ones only)
   botched: number; // critical cases that failed and were force-closed
   interviewFails: number; // rejected interviews before being hired
+  hintsUsed: number; // hints bought across the run
 }
 
 // Conduct tiers derived from the hidden integrity score. Ethical choices move
@@ -72,6 +73,7 @@ export function freshSave(): SaveData {
     totalCloses: 0,
     botched: 0,
     interviewFails: 0,
+    hintsUsed: 0,
   };
 }
 
@@ -98,16 +100,27 @@ export function rankProgress(save: SaveData): { have: number; need: number; max:
   return { have: save.xp - base, need: next - base, max: false };
 }
 
+/** XP each hint costs, taken off what the case pays when it closes. */
+export const HINT_COST = 5;
+
+export interface CloseGrade {
+  wrongAttempts: number;
+  botched: boolean;
+  hints?: number;
+}
+
 /**
  * XP for closing a case. A clean first-try close earns a 20% bonus, one retry
  * pays the base amount, more retries pay 60%, and a botched critical case pays
- * a quarter.
+ * a quarter. Each hint bought takes HINT_COST off that, down to zero.
  */
-export function xpForClose(baseXp: number, grade: { wrongAttempts: number; botched: boolean }): number {
-  if (grade.botched) return Math.round(baseXp * 0.25);
-  if (grade.wrongAttempts === 0) return Math.round(baseXp * 1.2);
-  if (grade.wrongAttempts === 1) return baseXp;
-  return Math.round(baseXp * 0.6);
+export function xpForClose(baseXp: number, grade: CloseGrade): number {
+  let xp: number;
+  if (grade.botched) xp = Math.round(baseXp * 0.25);
+  else if (grade.wrongAttempts === 0) xp = Math.round(baseXp * 1.2);
+  else if (grade.wrongAttempts === 1) xp = baseXp;
+  else xp = Math.round(baseXp * 0.6);
+  return Math.max(0, xp - (grade.hints ?? 0) * HINT_COST);
 }
 
 export function hasFlag(save: SaveData, flag: Flag): boolean {

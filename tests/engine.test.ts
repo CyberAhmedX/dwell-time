@@ -18,6 +18,7 @@ import {
   save,
   wipe,
   xpForClose,
+  HINT_COST,
 } from "../src/engine/state";
 import { TICKETS } from "../src/content/tickets";
 import { CHAPTERS } from "../src/content/chapters";
@@ -207,6 +208,18 @@ describe("conduct and accuracy", () => {
     s.totalCloses = 4;
     s.cleanCloses = 3;
     expect(accuracy(s)).toBeCloseTo(0.75);
+  });
+});
+
+describe("hints", () => {
+  it("each hint takes HINT_COST off what the case pays", () => {
+    expect(xpForClose(40, { wrongAttempts: 0, botched: false, hints: 0 })).toBe(48);
+    expect(xpForClose(40, { wrongAttempts: 0, botched: false, hints: 2 })).toBe(48 - 2 * HINT_COST);
+    expect(xpForClose(40, { wrongAttempts: 1, botched: false, hints: 1 })).toBe(40 - HINT_COST);
+  });
+
+  it("never pays less than zero", () => {
+    expect(xpForClose(20, { wrongAttempts: 0, botched: true, hints: 4 })).toBe(0);
   });
 });
 

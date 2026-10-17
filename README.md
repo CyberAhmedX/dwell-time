@@ -41,6 +41,9 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Pass one to get hired. After that every track plays the same story.
 - **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant.
 - **A side case** in chapter one, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
+- **Click the evidence**: some questions ask you to point at the exact log row, email header, timeline event or process that proves it, the way an analyst would.
+- **Hints that cost XP** when you are stuck, so guessing is never cheaper than reading.
+- **MITRE ATT&CK tags** on each solved case, naming the real technique it covered (for example T1566 Phishing).
 - **XP and ranks**: climb from Probationary Analyst to Lead Analyst as you close cases.
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
 - **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood.

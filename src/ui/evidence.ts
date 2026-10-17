@@ -4,8 +4,22 @@ import { el } from "./dom";
 // Render each evidence kind into its own little viewer. These are the "tools"
 // the analyst reads: an email client, a log table, a chat, a flow summary, a
 // process tree, a timeline, a sticky note.
+//
+// Every part a spot question can ask about carries data-pick with the key from
+// engine/pick.ts. With plain set, authored warning marks (suspicious process,
+// red timeline dots) are left off, so a spot question is not answered for you.
 
-export function renderEvidence(ev: Evidence): HTMLElement {
+export interface EvidenceOptions {
+  plain?: boolean;
+}
+
+export function renderEvidence(ev: Evidence, opts: EvidenceOptions = {}): HTMLElement {
+  const view = viewFor(ev, opts);
+  view.dataset.ev = ev.id;
+  return view;
+}
+
+function viewFor(ev: Evidence, opts: EvidenceOptions): HTMLElement {
   switch (ev.kind) {
     case "email":
       return emailView(ev);
@@ -16,9 +30,9 @@ export function renderEvidence(ev: Evidence): HTMLElement {
     case "flow":
       return flowView(ev);
     case "tree":
-      return treeView(ev);
+      return treeView(ev, opts);
     case "timeline":
-      return timelineView(ev);
+      return timelineView(ev, opts);
     case "note":
       return noteView(ev);
   }
@@ -46,12 +60,12 @@ function emailView(ev: Extract<Evidence, { kind: "email" }>): HTMLElement {
   }
   const body = el("div", { class: "mail" }, [
     el("div", { class: "mail-hdr" }, rows),
-    el("div", { class: "mail-body" }, ev.body.map((p) => el("p", { text: p }))),
+    el("div", { class: "mail-body" }, ev.body.map((p, i) => el("p", { text: p, "data-pick": `p${i}` }))),
   ]);
   return shell(ev.label, "EMAIL", body);
 
   function row(k: string, v: string, mono = false): HTMLElement {
-    return el("div", { class: "mail-row" }, [
+    return el("div", { class: "mail-row", "data-pick": `h:${k}` }, [
       el("span", { class: "mail-k", text: k }),
       el("span", { class: mono ? "mail-v mono" : "mail-v", text: v }),
     ]);
@@ -67,11 +81,10 @@ function logView(ev: Extract<Evidence, { kind: "log" }>): HTMLElement {
   const draw = (q: string): void => {
     tbody.replaceChildren();
     const ql = q.toLowerCase();
-    for (const r of ev.rows) {
-      if (ql && !r.join(" ").toLowerCase().includes(ql)) continue;
-      const suspicious = r.join(" ").match(/rule created|203\.0\.113|unknown|tunnel|svc_|probe/i);
-      tbody.append(el("tr", { class: suspicious ? "row-bad" : "" }, r.map((c) => el("td", { text: c }))));
-    }
+    ev.rows.forEach((r, i) => {
+      if (ql && !r.join(" ").toLowerCase().includes(ql)) return;
+      tbody.append(el("tr", { "data-pick": `r${i}` }, r.map((c) => el("td", { text: c }))));
+    });
   };
   input.addEventListener("input", () => draw(input.value));
   draw("");
@@ -88,8 +101,8 @@ function chatView(ev: Extract<Evidence, { kind: "chat" }>): HTMLElement {
   const body = el(
     "div",
     { class: "chat" },
-    ev.lines.map((l) =>
-      el("div", { class: l.self ? "bubble me" : "bubble them" }, [
+    ev.lines.map((l, i) =>
+      el("div", { class: l.self ? "bubble me" : "bubble them", "data-pick": `c${i}` }, [
         el("span", { class: "who", text: l.who === "you" ? "You" : l.who.toUpperCase() }),
         el("span", { class: "msg", text: l.text }),
       ]),
@@ -99,8 +112,8 @@ function chatView(ev: Extract<Evidence, { kind: "chat" }>): HTMLElement {
 }
 
 function flowView(ev: Extract<Evidence, { kind: "flow" }>): HTMLElement {
-  const rows = ev.rows.map((r) =>
-    el("tr", { class: r.note && /huge|again|boundary|the same|growing|testing/i.test(r.note) ? "row-bad" : "" }, [
+  const rows = ev.rows.map((r, i) =>
+    el("tr", { "data-pick": `r${i}` }, [
       el("td", { class: "mono", text: r.src }),
       el("td", { class: "arrow", text: "->" }),
       el("td", { class: "mono", text: r.dst }),
@@ -120,31 +133,32 @@ function flowView(ev: Extract<Evidence, { kind: "flow" }>): HTMLElement {
   return shell(ev.label, "FLOW", body);
 }
 
-function treeView(ev: Extract<Evidence, { kind: "tree" }>): HTMLElement {
+function treeView(ev: Extract<Evidence, { kind: "tree" }>, opts: EvidenceOptions): HTMLElement {
+  let next = 0;
+  const node = (n: TreeNode, depth: number): HTMLElement => {
+    const key = `n${next++}`;
+    const line = el("div", { class: n.suspicious && !opts.plain ? "tnode bad" : "tnode", style: `margin-left:${depth * 16}px`, "data-pick": key }, [
+      el("span", { class: "tglyph", text: depth === 0 ? "#" : "+-" }),
+      el("span", { class: "tname mono", text: n.name }),
+      n.detail ? el("span", { class: "tdetail", text: " " + n.detail }) : el("span"),
+    ]);
+    const wrap = el("div", {}, [line]);
+    if (n.children) for (const c of n.children) wrap.append(node(c, depth + 1));
+    return wrap;
+  };
   const body = el("div", { class: "tree" }, [
     ev.caption ? el("div", { class: "cap", text: ev.caption }) : el("span"),
-    treeNode(ev.root, 0),
+    node(ev.root, 0),
   ]);
   return shell(ev.label, "PROCESS", body);
 }
 
-function treeNode(n: TreeNode, depth: number): HTMLElement {
-  const line = el("div", { class: n.suspicious ? "tnode bad" : "tnode", style: `margin-left:${depth * 16}px` }, [
-    el("span", { class: "tglyph", text: depth === 0 ? "#" : "+-" }),
-    el("span", { class: "tname mono", text: n.name }),
-    n.detail ? el("span", { class: "tdetail", text: " " + n.detail }) : el("span"),
-  ]);
-  const wrap = el("div", {}, [line]);
-  if (n.children) for (const c of n.children) wrap.append(treeNode(c, depth + 1));
-  return wrap;
-}
-
-function timelineView(ev: Extract<Evidence, { kind: "timeline" }>): HTMLElement {
+function timelineView(ev: Extract<Evidence, { kind: "timeline" }>, opts: EvidenceOptions): HTMLElement {
   const body = el(
     "div",
     { class: "timeline" },
-    ev.events.map((e) =>
-      el("div", { class: `tl ${e.mark ?? "info"}` }, [
+    ev.events.map((e, i) =>
+      el("div", { class: `tl ${opts.plain ? "info" : (e.mark ?? "info")}`, "data-pick": `e${i}` }, [
         el("span", { class: "tl-dot" }),
         el("span", { class: "tl-time", text: e.time }),
         el("span", { class: "tl-text", text: e.text }),
@@ -157,7 +171,7 @@ function timelineView(ev: Extract<Evidence, { kind: "timeline" }>): HTMLElement 
 function noteView(ev: Extract<Evidence, { kind: "note" }>): HTMLElement {
   const body = el("div", { class: "note-paper" }, [
     el("div", { class: "note-title", text: ev.title }),
-    ...ev.lines.map((l) => el("p", { class: "note-line", text: l })),
+    ...ev.lines.map((l, i) => el("p", { class: "note-line", text: l, "data-pick": `l${i}` })),
   ]);
   return shell(ev.label, "NOTE", body);
 }

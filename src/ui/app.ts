@@ -1,4 +1,4 @@
-import type { Chapter, Dept, Scene, SceneChoice, Ticket, Question } from "../engine/types";
+import type { Chapter, Dept, Evidence, Scene, SceneChoice, Ticket, Question } from "../engine/types";
 import { DEPTS, DEPT_LABEL } from "../engine/types";
 import {
   type SaveData,
@@ -18,7 +18,10 @@ import {
   isDone,
   unlockCodex,
   xpForClose,
+  hasFlag,
+  HINT_COST,
 } from "../engine/state";
+import { pickTargets } from "../engine/pick";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
 import {
   type MetaData,
@@ -476,10 +479,13 @@ export class App {
       ]),
     ]);
 
-    const evPanel = el("div", { class: "ev-panel" }, t.evidence.map(renderEvidence));
+    // evidence a spot question asks about is shown without warning marks
+    const spotted = new Set(t.questions.flatMap((q) => (q.type === "spot" ? [q.evidence] : [])));
+    const evPanel = el("div", { class: "ev-panel" }, t.evidence.map((ev) => renderEvidence(ev, { plain: spotted.has(ev.id) })));
 
     const qPanel = el("div", { class: "q-panel" });
-    const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel));
+    const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
+    const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
     const submit = el("button", { class: "btn primary", type: "button", text: review ? "Back to desk" : "Submit findings" });
     const feedback = el("div", { class: "ws-feedback" });
@@ -534,13 +540,15 @@ export class App {
     // Show every answer with its explanation, then leave the case on a click,
     // so the teaching notes are actually read.
     const closeCase = (botched: boolean): void => {
+      ctx.disarm?.();
       controls.forEach((c) => c.reveal());
       controls.forEach((c) => c.apply(this.s));
       qPanel.classList.add("done");
       const done = el("button", { class: "btn primary", type: "button", text: "Close the case" });
       done.addEventListener("click", () => {
         audio.click();
-        this.completeTicket(t, { wrongAttempts: wrong, botched });
+        const hints = t.questions.filter((q) => hasFlag(this.s, hintFlag(q))).length;
+        this.completeTicket(t, { wrongAttempts: wrong, botched, hints });
       });
       mount(
         feedback,
@@ -549,6 +557,7 @@ export class App {
           text: botched ? "Out of attempts. Read what each answer should have been, then close the case." : "Solved. Read the notes on each answer, then close the case.",
         }),
       );
+      if (t.attack?.length) feedback.append(attackTags(t));
       submit.replaceWith(done);
       done.focus();
     };
@@ -558,11 +567,13 @@ export class App {
       el("div", { class: "ws-col ws-questions" }, [el("div", { class: "col-label", text: "Your analysis" }), qPanel, feedback, submit]),
     ]);
 
+    if (review && t.attack?.length) head.append(attackTags(t));
+
     this.stage.className = "stage ticket";
     mount(this.stage, head, body);
   }
 
-  private completeTicket(t: Ticket, grade: { wrongAttempts: number; botched: boolean }): void {
+  private completeTicket(t: Ticket, grade: { wrongAttempts: number; botched: boolean; hints: number }): void {
     const beforeRank = rankIndex(this.s);
     const firstTime = !isDone(this.s, t.id);
 
@@ -572,16 +583,19 @@ export class App {
     let toastMsg = "";
     if (firstTime) {
       this.s.totalCloses++;
+      const gain = xpForClose(t.xp, grade);
       if (grade.botched) {
         this.s.integrity -= 1;
         this.s.botched++;
         setFlag(this.s, `botched_${t.id}`);
-        toastMsg = "Case botched";
+        toastMsg = `Case botched, +${gain} XP`;
       } else if (grade.wrongAttempts === 0) {
         this.s.cleanCloses++;
-        toastMsg = "Closed clean (+bonus XP)";
+        toastMsg = `Closed clean, +${gain} XP`;
+      } else {
+        toastMsg = `+${gain} XP`;
       }
-      this.s.xp += xpForClose(t.xp, grade);
+      this.s.xp += gain;
       markDone(this.s, t.id);
     }
 
@@ -591,6 +605,7 @@ export class App {
       t.questions.forEach((q) => {
         if ("teaches" in q && q.teaches) unlockCodex(this.s, q.teaches);
       });
+      if (t.attack?.length) unlockCodex(this.s, "attack");
     }
     this.persist();
 
@@ -613,10 +628,13 @@ export class App {
   }
 
   // ----------------------------------------------------------------- questions
-  private buildQuestion(q: Question, _panel: HTMLElement): QuestionControl {
+  private buildQuestion(q: Question, panel: HTMLElement, ctx: QuestionContext): QuestionControl {
     const wrap = el("div", { class: "q-block" });
     wrap.append(el("p", { class: "q-prompt", text: q.prompt }));
-    _panel.append(wrap);
+    if (q.type !== "decision" && q.hint && !ctx.review) wrap.append(this.hintBox(q.hint, hintFlag(q)));
+    panel.append(wrap);
+
+    if (q.type === "spot") return this.spotQuestion(q, wrap, ctx);
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -774,6 +792,118 @@ export class App {
         });
         sv.integrity += o.integrity ?? 0;
       },
+      focus: () => wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" }),
+    };
+  }
+
+  // A hint costs XP when the case closes. Bought hints are stored as flags, so a
+  // reload neither loses them nor makes them free.
+  private hintBox(hint: string, flag: string): HTMLElement {
+    const box = el("div", { class: "hint" });
+    const show = (): void => mount(box, el("p", { class: "hint-text", text: hint }));
+    if (hasFlag(this.s, flag)) {
+      show();
+      return box;
+    }
+    const b = el("button", { class: "hint-btn", type: "button", text: `Hint (costs ${HINT_COST} XP)` });
+    b.addEventListener("click", () => {
+      audio.click();
+      setFlag(this.s, flag);
+      this.s.hintsUsed++;
+      this.persist();
+      show();
+    });
+    box.append(b);
+    return box;
+  }
+
+  private spotQuestion(q: Extract<Question, { type: "spot" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
+    const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence) as Evidence;
+    const view = ctx.evPanel.querySelector<HTMLElement>(`[data-ev="${q.evidence}"]`)!;
+    const labels = new Map(pickTargets(ev).map((p) => [p.key, p.label]));
+    let sel: string | null = null;
+
+    const pickBtn = el("button", { class: "btn ghost small spot-btn", type: "button", text: "Pick in the evidence" });
+    const yours = el("p", { class: "spot-pick", text: "Nothing picked yet." });
+    const expl = el("div", { class: "explain", hidden: true });
+    wrap.append(pickBtn, yours, expl);
+
+    const targets = (): HTMLElement[] => [...view.querySelectorAll<HTMLElement>("[data-pick]")];
+    const banner = el("div", { class: "pick-banner", text: `${ev.label}: click the part you mean. Esc cancels.` });
+
+    const disarm = (): void => {
+      view.classList.remove("picking");
+      banner.remove();
+      targets().forEach((x) => {
+        x.removeAttribute("tabindex");
+        x.removeAttribute("role");
+      });
+      view.removeEventListener("click", onClick);
+      view.removeEventListener("keydown", onKey);
+      pickBtn.textContent = "Pick in the evidence";
+      if (ctx.disarm === disarm) ctx.disarm = null;
+    };
+    const choose = (key: string): void => {
+      sel = key;
+      targets().forEach((x) => x.classList.toggle("picked", x.dataset.pick === key));
+      const label = labels.get(key) ?? key;
+      yours.textContent = `Your pick: ${label.length > 140 ? label.slice(0, 137) + "..." : label}`;
+      audio.type();
+      disarm();
+      wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" });
+    };
+    const onClick = (e: Event): void => {
+      const hit = (e.target as HTMLElement).closest<HTMLElement>("[data-pick]");
+      if (hit && view.contains(hit)) choose(hit.dataset.pick!);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") {
+        disarm();
+        pickBtn.focus();
+        return;
+      }
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const hit = (e.target as HTMLElement).closest<HTMLElement>("[data-pick]");
+      if (!hit) return;
+      e.preventDefault();
+      choose(hit.dataset.pick!);
+    };
+    pickBtn.addEventListener("click", () => {
+      audio.click();
+      if (ctx.disarm === disarm) {
+        disarm();
+        return;
+      }
+      ctx.disarm?.();
+      ctx.disarm = disarm;
+      view.classList.add("picking");
+      view.prepend(banner);
+      targets().forEach((x) => {
+        x.tabIndex = 0;
+        x.setAttribute("role", "button");
+      });
+      view.addEventListener("click", onClick);
+      view.addEventListener("keydown", onKey);
+      pickBtn.textContent = "Cancel picking";
+      view.scrollIntoView({ behavior: scrollMotion(), block: "start" });
+      (targets().find((x) => x.classList.contains("picked")) ?? targets()[0])?.focus({ preventScroll: true });
+    });
+
+    const isRight = (): boolean => sel !== null && q.answer.includes(sel);
+    return {
+      ready: () => sel !== null,
+      correct: isRight,
+      reveal: () => {
+        targets().forEach((x) => {
+          x.classList.toggle("pick-right", q.answer.includes(x.dataset.pick!));
+          x.classList.toggle("pick-wrong", x.dataset.pick === sel && !isRight());
+        });
+        expl.hidden = false;
+        expl.className = isRight() ? "explain good" : "explain bad";
+        mount(expl, el("p", { text: isRight() ? q.explainRight : q.explainWrong }));
+      },
+      mark: () => markBlock(wrap, isRight()),
+      apply: () => {},
       focus: () => wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" }),
     };
   }
@@ -1241,6 +1371,24 @@ function stat(label: string, value: string): HTMLElement {
   return el("div", { class: "stat" }, [
     el("span", { class: "stat-k", text: label }),
     el("span", { class: "stat-v", text: value }),
+  ]);
+}
+
+interface QuestionContext {
+  ticket: Ticket;
+  evPanel: HTMLElement;
+  review: boolean;
+  disarm: (() => void) | null; // stops whichever spot question is picking
+}
+
+function hintFlag(q: Question): string {
+  return `hint:${q.id}`;
+}
+
+function attackTags(t: Ticket): HTMLElement {
+  return el("div", { class: "attack" }, [
+    el("span", { class: "attack-k", text: "MITRE ATT&CK" }),
+    ...(t.attack ?? []).map((a) => el("span", { class: "attack-tag", text: `${a.id} ${a.name}` })),
   ]);
 }
 
