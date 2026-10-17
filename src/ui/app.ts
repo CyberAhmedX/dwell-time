@@ -273,16 +273,18 @@ export class App {
     const prompt = el("p", { class: "q-prompt", text: q.prompt });
     const opts = el("div", { class: "q-opts" });
     let answered = false;
-    q.options.forEach((opt, oi) => {
-      const b = el("button", { class: "opt", type: "button", text: opt });
+    // options appear in a new random order every time, so position gives nothing away
+    const shown = shuffled(q.options.map((_, i) => i));
+    shown.forEach((oi) => {
+      const b = el("button", { class: "opt", type: "button", text: q.options[oi] });
       b.addEventListener("click", () => {
         if (answered) return;
         answered = true;
         const right = oi === q.answer;
-        [...opts.children].forEach((c, ci) => {
+        [...opts.children].forEach((c, pos) => {
           c.classList.add("locked");
-          if (ci === q.answer) c.classList.add("correct");
-          else if (ci === oi) c.classList.add("wrong");
+          if (shown[pos] === q.answer) c.classList.add("correct");
+          else if (shown[pos] === oi) c.classList.add("wrong");
         });
         if (right) audio.correct();
         else audio.wrong();
@@ -555,14 +557,16 @@ export class App {
     wrap.append(el("p", { class: "q-prompt", text: q.prompt }));
     _panel.append(wrap);
 
+    // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
       let sel = -1;
+      const shown = shuffled(q.options.map((_, i) => i));
       const opts = el("div", { class: "q-opts" });
-      q.options.forEach((o, oi) => {
-        const b = el("button", { class: "opt", type: "button", text: o });
+      shown.forEach((oi) => {
+        const b = el("button", { class: "opt", type: "button", text: q.options[oi] });
         b.addEventListener("click", () => {
           sel = oi;
-          [...opts.children].forEach((c, ci) => c.classList.toggle("sel", ci === oi));
+          [...opts.children].forEach((c, pos) => c.classList.toggle("sel", shown[pos] === oi));
           audio.type();
         });
         opts.append(b);
@@ -574,9 +578,9 @@ export class App {
         ready: () => sel >= 0,
         correct: () => sel === q.answer,
         reveal: () => {
-          [...opts.children].forEach((c, ci) => {
-            c.classList.toggle("correct", ci === q.answer);
-            c.classList.toggle("wrong", ci === sel && sel !== q.answer);
+          [...opts.children].forEach((c, pos) => {
+            c.classList.toggle("correct", shown[pos] === q.answer);
+            c.classList.toggle("wrong", shown[pos] === sel && sel !== q.answer);
           });
           expl.hidden = false;
           expl.className = sel === q.answer ? "explain good" : "explain bad";
@@ -590,11 +594,12 @@ export class App {
 
     if (q.type === "multi") {
       const sel = new Set<number>();
+      const shown = shuffled(q.options.map((_, i) => i));
       const opts = el("div", { class: "q-opts" });
-      q.options.forEach((o, oi) => {
+      shown.forEach((oi) => {
         const b = el("button", { class: "opt check", type: "button" }, [
           el("span", { class: "box" }),
-          el("span", { text: o }),
+          el("span", { text: q.options[oi] }),
         ]);
         b.addEventListener("click", () => {
           if (sel.has(oi)) sel.delete(oi);
@@ -613,9 +618,10 @@ export class App {
         ready: () => sel.size > 0,
         correct: isRight,
         reveal: () => {
-          [...opts.children].forEach((c, ci) => {
-            c.classList.toggle("correct", want.has(ci));
-            c.classList.toggle("wrong", sel.has(ci) && !want.has(ci));
+          [...opts.children].forEach((c, pos) => {
+            const oi = shown[pos];
+            c.classList.toggle("correct", want.has(oi));
+            c.classList.toggle("wrong", sel.has(oi) && !want.has(oi));
           });
           expl.hidden = false;
           expl.className = isRight() ? "explain good" : "explain bad";

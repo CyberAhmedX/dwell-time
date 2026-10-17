@@ -205,3 +205,31 @@ describe("content integrity", () => {
     }
   });
 });
+
+// Quiz-writing house rule: the right answer must not stand out by length.
+// When the correct option is always the longest, players learn to pick the
+// longest option instead of reading the evidence.
+describe("answer options do not give the answer away", () => {
+  const singles = [
+    ...TICKETS.flatMap((t) => t.questions),
+    ...INTERVIEWS.flatMap((iv) => iv.questions),
+  ].filter((q) => q.type === "single");
+
+  it("the correct option is never much longer than the longest wrong one", () => {
+    for (const q of singles) {
+      if (q.type !== "single") continue;
+      const right = q.options[q.answer].length;
+      const longestWrong = Math.max(...q.options.filter((_, i) => i !== q.answer).map((o) => o.length));
+      expect(right, `${q.id}: correct option is ${right} characters, longest wrong one is ${longestWrong}`).toBeLessThanOrEqual(longestWrong * 1.15);
+    }
+  });
+
+  it("the correct option is the longest in at most a third of the questions", () => {
+    const longest = singles.filter((q) => {
+      if (q.type !== "single") return false;
+      const lens = q.options.map((o) => o.length);
+      return lens[q.answer] === Math.max(...lens) && lens.filter((l) => l === lens[q.answer]).length === 1;
+    });
+    expect(longest.length, longest.map((q) => q.id).join(", ")).toBeLessThanOrEqual(Math.floor(singles.length / 3));
+  });
+});
