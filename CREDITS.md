@@ -1,7 +1,6 @@
 # Credits and asset provenance
 
-Dwell Time is built to be clean on licensing. Here is exactly where everything
-comes from.
+Where everything in Dwell Time comes from.
 
 ## Written, designed, and coded
 
@@ -12,7 +11,7 @@ code, no imported sprites) are original to this project.
 
 Every sound in the game, the soundtrack and all effects, is **synthesized at
 runtime** with the Web Audio API in `src/audio/audio.ts`. There are no audio
-files, no samples, and nothing copied from anyone. It is generated math.
+files and no samples.
 
 ## Fonts
 
@@ -32,8 +31,8 @@ They are delivered via the `@fontsource` packages and inlined into the build.
 Build and test tooling only (Vite, Vitest, ESLint, TypeScript). None of it ships
 in the final game; the production build is a single self-contained HTML file.
 
-## A note for anyone shipping this
+## License
 
-If you publish Dwell Time, keep this file with it. The font licenses only ask
-that the OFL text travels with the fonts, which `@fontsource` includes in
-`node_modules`. Everything else here is yours to license as you wish.
+The code, writing and art are all rights reserved (see `LICENSE`). The fonts
+keep their own SIL OFL 1.1 license, and its text ships with the `@fontsource`
+packages.
