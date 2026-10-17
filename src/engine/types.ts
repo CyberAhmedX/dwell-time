@@ -228,4 +228,5 @@ export interface Ending {
   epigraph: string;
   lines: string[];
   rankTitle: string;
+  hint: string; // shown in the endings gallery until you have seen it
 }

@@ -43,7 +43,9 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **A side case** in chapter one, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **XP and ranks**: climb from Probationary Analyst to Lead Analyst as you close cases.
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
-- **Five endings** driven by your choices about integrity, trust, and the truth.
+- **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood.
+- **Achievements** for how you played, like keeping the evidence chain intact or closing every case right on the first try.
+- **Settings** for music and effects volume, text size, and reduced motion.
 
 ## Everything here is fictional and safe
 
@@ -58,7 +60,7 @@ npm run build    # single self-contained HTML file in dist/
 npm run check    # lint + typecheck + tests
 ```
 
-The production build is one self-contained `dist/index.html` of about 430 KB, fonts included. It makes no network requests, so it works offline and can be hosted anywhere.
+The production build is one self-contained `dist/index.html` of about 450 KB, fonts included. It makes no network requests, so it works offline and can be hosted anywhere.
 
 ## Project layout
 

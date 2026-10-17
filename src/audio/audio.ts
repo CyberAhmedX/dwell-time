@@ -37,11 +37,14 @@ const PALETTES: Record<Chapter, Palette> = {
 export class AudioEngine {
   private ac: AudioContext | null = null;
   private master!: GainNode;
+  private musicBus!: GainNode; // soundtrack and rain
   private musicGain!: GainNode;
   private rainGain!: GainNode;
+  private sfxGain!: GainNode; // clicks, chimes and thunder
   private started = false;
   private muted = false;
-  private volume = 0.7;
+  private musicVolume = 0.7;
+  private effectsVolume = 0.7;
   private palette: Palette = PALETTES[0];
   private step = 0;
   private nextTime = 0;
@@ -60,27 +63,40 @@ export class AudioEngine {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.ac = new Ctx();
     this.master = this.ac.createGain();
-    this.master.gain.value = this.muted ? 0 : this.volume;
+    this.master.gain.value = this.muted ? 0 : 1;
     this.master.connect(this.ac.destination);
+
+    this.musicBus = this.ac.createGain();
+    this.musicBus.gain.value = this.musicVolume;
+    this.musicBus.connect(this.master);
 
     this.musicGain = this.ac.createGain();
     this.musicGain.gain.value = 0.9;
-    this.musicGain.connect(this.master);
+    this.musicGain.connect(this.musicBus);
 
     this.rainGain = this.ac.createGain();
     this.rainGain.gain.value = 0;
-    this.rainGain.connect(this.master);
+    this.rainGain.connect(this.musicBus);
     this.startRain();
+
+    this.sfxGain = this.ac.createGain();
+    this.sfxGain.gain.value = this.effectsVolume;
+    this.sfxGain.connect(this.master);
   }
 
-  setVolume(v: number): void {
-    this.volume = Math.max(0, Math.min(1, v));
-    if (this.ac && !this.muted) this.master.gain.setTargetAtTime(this.volume, this.ac.currentTime, 0.1);
+  setMusicVolume(v: number): void {
+    this.musicVolume = Math.max(0, Math.min(1, v));
+    if (this.ac) this.musicBus.gain.setTargetAtTime(this.musicVolume, this.ac.currentTime, 0.1);
+  }
+
+  setEffectsVolume(v: number): void {
+    this.effectsVolume = Math.max(0, Math.min(1, v));
+    if (this.ac) this.sfxGain.gain.setTargetAtTime(this.effectsVolume, this.ac.currentTime, 0.05);
   }
 
   setMuted(m: boolean): void {
     this.muted = m;
-    if (this.ac) this.master.gain.setTargetAtTime(m ? 0 : this.volume, this.ac.currentTime, 0.05);
+    if (this.ac) this.master.gain.setTargetAtTime(m ? 0 : 1, this.ac.currentTime, 0.05);
   }
 
   startMusic(): void {
@@ -192,7 +208,7 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g);
-    g.connect(this.master);
+    g.connect(this.sfxGain);
     o.start(t);
     o.stop(t + dur + 0.02);
   }
@@ -244,7 +260,7 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
     src.connect(f);
     f.connect(g);
-    g.connect(this.master);
+    g.connect(this.sfxGain);
     src.start(t);
   }
 }
