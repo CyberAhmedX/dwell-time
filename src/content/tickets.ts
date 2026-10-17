@@ -15,6 +15,10 @@ export const TICKETS: Ticket[] = [
     client: "Brightloaf Bakery Co.",
     title: "Weird email from the owner",
     xp: 40,
+    attack: [
+      { id: "T1566", name: "Phishing" },
+      { id: "T1656", name: "Impersonation" },
+    ],
     brief: [
       "Theo drops a sticky note on your monitor.",
       "First real one. Brightloaf's office manager forwarded this and asked if it is legit. Have a look, tell me what you see, and what she should do.",
@@ -52,6 +56,17 @@ export const TICKETS: Ticket[] = [
     ],
     questions: [
       {
+        type: "spot",
+        id: "q_phish_spot",
+        prompt: "Click the line in the email that shows where a reply would really go.",
+        evidence: "ev_phish_mail",
+        answer: ["h:Reply-To"],
+        explainRight: "Right. The Reply-To header sends any reply to mailbox-portal.test, not to Brightloaf. Whoever answers is talking to the attacker.",
+        explainWrong: "Look at the Reply-To header. It sends every reply to mailbox-portal.test, a domain that has nothing to do with Brightloaf.",
+        teaches: "phishing",
+        hint: "A reply does not always go back to the From address. One header decides where it lands.",
+      },
+      {
         type: "multi",
         id: "q_phish_signs",
         prompt: "Select every warning sign in this email.",
@@ -66,6 +81,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Good eye. Manufactured urgency, a lookalike sender domain, a mismatched Reply-To, and an attempt to bypass normal process. 'Sent from my phone' is just a signature, harmless on its own.",
         explainWrong: "The red flags are the urgency, the mismatched sender domain, the odd Reply-To, and the request to skip finance. 'Sent from my phone' is just a signature and proves nothing either way.",
         teaches: "phishing",
+        hint: "Not every odd detail is a warning sign. For each one, ask whether a real email from Gregor could look the same.",
       },
       {
         type: "single",
@@ -81,6 +97,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Exactly. Verify through a channel you already trust, and report it. Never reply to the suspicious message itself.",
         explainWrong: "Verify with Gregor using a number you already have, and report the email. Replying only tells the sender a human is reading.",
         teaches: "phishing",
+        hint: "Whatever she does, no phone number, address or link from the suspicious email should be part of it.",
       },
     ],
     closingRight: [
@@ -130,6 +147,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. That header is PostScript. The printer printed the page description instead of rendering it, almost always a driver mismatch. Not a virus.",
         explainWrong: "That %!PS-Adobe header is PostScript, the language that describes the page. The printer printed it as text, a classic wrong-driver issue, not malware.",
         teaches: "false-positive",
+        hint: "Look up what a file starting with %!PS is before you blame malware.",
       },
     ],
     closingRight: [
@@ -147,6 +165,11 @@ export const TICKETS: Ticket[] = [
     client: "Brightloaf Bakery Co.",
     title: "Invoices going missing in finance",
     xp: 70,
+    attack: [
+      { id: "T1078", name: "Valid Accounts" },
+      { id: "T1114.003", name: "Email Forwarding Rule" },
+      { id: "T1564.008", name: "Email Hiding Rules" },
+    ],
     requires: ["seen_brightloaf"],
     brief: [
       "Mags waves you over without turning around.",
@@ -192,6 +215,17 @@ export const TICKETS: Ticket[] = [
     ],
     questions: [
       {
+        type: "spot",
+        id: "q_bec_spot",
+        prompt: "Click the sign-in where the intruder first got into the mailbox.",
+        evidence: "ev_bec_logins",
+        answer: ["r2"],
+        explainRight: "Right. Wednesday 02:11 from 203.0.113.77, a hosting range, while every normal sign-in comes from Port Halden during office hours.",
+        explainWrong: "The first bad sign-in is Wednesday 02:11 from 203.0.113.77. The rule comes a minute later; the sign-in is how they got in.",
+        teaches: "forwarding-rule",
+        hint: "Compare the address and the hour of each sign-in with the others. Then find the earliest odd one.",
+      },
+      {
         type: "single",
         id: "q_bec_what",
         prompt: "What is going on with this mailbox?",
@@ -205,6 +239,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Correct. A login from a hosting range at 2am, then a sneaky rule that forwards and hides anything about invoices. Classic business email compromise.",
         explainWrong: "This is business email compromise. The 2am login from a hosting provider and the rule that forwards and buries invoice mail give it away.",
         teaches: "forwarding-rule",
+        hint: "Who creates a rule named '.' at 2am that hides every mail about invoices?",
       },
       {
         type: "order",
@@ -219,6 +254,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Good sequence. Lock the attacker out first, then remove their rule, then assess money already lost, then stop future losses with a warning.",
         explainWrong: "Lock them out first (password plus sign-out), then kill the rule, then check for payments already diverted, then warn people. Containment before cleanup before assessment before prevention.",
         teaches: "forwarding-rule",
+        hint: "While the intruder still has the password, anything you clean up they can set up again.",
       },
       {
         type: "single",
@@ -234,6 +270,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. A shared indicator across two incidents is a thread. Juno in threat intel will want this.",
         explainWrong: "A shared domain across both incidents is a connecting thread, not a coincidence. That overlap is exactly what threat intel tracks.",
         teaches: "ioc",
+        hint: "Read the reminder note from last week again.",
       },
     ],
     closingRight: [
@@ -250,6 +287,10 @@ export const TICKETS: Ticket[] = [
     client: "Halden Unified School District",
     title: "A lab PC that will not stop talking",
     xp: 70,
+    attack: [
+      { id: "T1071.004", name: "Application Layer Protocol: DNS" },
+      { id: "T1048", name: "Exfiltration Over Alternative Protocol" },
+    ],
     brief: [
       "Priya rolls her chair into your aisle.",
       "School's firewall is screaming about one computer lab machine. Thousands of DNS lookups to one domain, all day. I have a theory but I want you to tell me what you see. No pressure. It is DNS. It is always DNS.",
@@ -276,13 +317,24 @@ export const TICKETS: Ticket[] = [
         label: "Flow summary for lab-pc-07",
         caption: "Who did this machine talk to today?",
         rows: [
-          { src: "lab-pc-07", dst: "DNS resolver", port: "53/udp", bytes: "88 MB", note: "huge for DNS" },
-          { src: "lab-pc-07", dst: "school fileshare", port: "445/tcp", bytes: "2 MB", note: "normal" },
-          { src: "lab-pc-07", dst: "update server", port: "443/tcp", bytes: "40 MB", note: "normal" },
+          { src: "lab-pc-07", dst: "DNS resolver", port: "53/udp", bytes: "88 MB" },
+          { src: "lab-pc-07", dst: "school fileshare", port: "445/tcp", bytes: "2 MB" },
+          { src: "lab-pc-07", dst: "update server", port: "443/tcp", bytes: "40 MB" },
         ],
       },
     ],
     questions: [
+      {
+        type: "spot",
+        id: "q_dns_spot",
+        prompt: "Click the flow that carries the stolen data.",
+        evidence: "ev_dns_flow",
+        answer: ["r0"],
+        explainRight: "Right. 88 MB of DNS in a day. Name lookups are tiny, so that volume means something is riding inside them.",
+        explainWrong: "It is the 88 MB going to the DNS resolver on port 53. Lookups are tiny; that much DNS means data is hidden inside them.",
+        teaches: "dns-tunnel",
+        hint: "How much traffic should name lookups need in a day? Compare each volume with what that service normally uses.",
+      },
       {
         type: "single",
         id: "q_dns_what",
@@ -297,6 +349,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. Long random subdomains, TXT records, 40 lookups a second, 88 MB over DNS. That is a tunnel, not browsing.",
         explainWrong: "This is DNS tunneling. The random subdomains, TXT type, and 88 MB of DNS traffic mean data is being smuggled out inside lookups.",
         teaches: "dns-tunnel",
+        hint: "Real names people visit are short and repeat. These are random and never repeat.",
       },
       {
         type: "single",
@@ -312,6 +365,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Exactly. Block DNS and the whole network breaks, so it is left open, which makes it a tempting smuggling route.",
         explainWrong: "DNS is left open on almost every network because things break without it. That near-universal allowance is exactly why it gets abused as a tunnel.",
         teaches: "dns-tunnel",
+        hint: "Think about what stops working on a network that blocks DNS.",
       },
       {
         type: "order",
@@ -326,6 +380,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Good. Contain the host, cut the channel, preserve it for forensics, then hunt for spread. Stop the bleeding, then investigate, then widen.",
         explainWrong: "Isolate the host, block the domain, preserve the machine for forensics, then hunt for the pattern elsewhere. Contain, cut, preserve, hunt.",
         teaches: "dns-tunnel",
+        hint: "Stop the leak first. Save the machine before anyone cleans it. Look wider last.",
       },
     ],
     closingRight: [
@@ -386,6 +441,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Correct. Image first, verify with a hash, never touch the original again. Booting it would change it and taint the evidence.",
         explainWrong: "You image it first and verify the copy with a hash, then examine only the copy. Booting the original alters it and can ruin the case.",
         teaches: "chain-of-custody",
+        hint: "Anything you do to the original laptop changes it. How do you look inside without touching it?",
       },
       {
         type: "decision",
@@ -421,6 +477,10 @@ export const TICKETS: Ticket[] = [
     client: "St. Brennan's Clinic",
     title: "Building the timeline",
     xp: 90,
+    attack: [
+      { id: "T1078", name: "Valid Accounts" },
+      { id: "T1136", name: "Create Account" },
+    ],
     requires: ["clinic_examined"],
     brief: [
       "Dr. Vance spreads the findings across two monitors.",
@@ -453,6 +513,17 @@ export const TICKETS: Ticket[] = [
     ],
     questions: [
       {
+        type: "spot",
+        id: "q_timeline_spot",
+        prompt: "Click the event that shows the backdoor account was not created from inside Lanternhouse.",
+        evidence: "ev_timeline",
+        answer: ["e3"],
+        explainRight: "Right. The request came from 203.0.113.77, a hosting provider. Whoever typed it was outside the building, whatever the username says.",
+        explainWrong: "The key event is the one about where the request came from: 203.0.113.77, a hosting provider, not a Lanternhouse machine.",
+        teaches: "attribution",
+        hint: "One event says who the log names. Another says where the request actually came from.",
+      },
+      {
         type: "single",
         id: "q_timeline_account",
         prompt: "The new backdoor account 'svc_tidewatch' was created by 'w.abernathy', from a hosting address. What is the most careful reading?",
@@ -466,6 +537,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Correct. The account acted, from an outside hosting address, using a password that was never rotated. A username is not a person. That gap is the case.",
         explainWrong: "Careful. The credentials were used from an external address. A username in a log is not proof of the person. That is the whole discipline of attribution.",
         teaches: "attribution",
+        hint: "A log records which account acted, not who was at the keyboard.",
       },
       {
         type: "single",
@@ -481,6 +553,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Exactly. One shared, unrotated credential with no MFA is a door that was never locked, for five years. Everything else grew from that.",
         explainWrong: "The root cause is the shared, unrotated admin password with no MFA. After a known breach it was never fixed, leaving the door open for years.",
         teaches: "mfa",
+        hint: "Read the credential note. What was never changed?",
       },
       {
         type: "single",
@@ -496,6 +569,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. If the console suppressed the alerts, blaming the person on shift was convenient, not correct. That matters more than it looks right now.",
         explainWrong: "The alerts were silenced in the console. Blaming the analyst on shift was convenient. Hold onto that, it will matter.",
         teaches: "attribution",
+        hint: "Where were the alerts silenced, and could the person on shift see past that?",
       },
     ],
     closingRight: [
@@ -514,6 +588,9 @@ export const TICKETS: Ticket[] = [
     client: "Port Halden Harbor Authority",
     title: "Authorized test, with a hard line",
     xp: 90,
+    attack: [
+      { id: "T1190", name: "Exploit Public-Facing Application" },
+    ],
     brief: [
       "Rook slides a one-page scope across the desk and taps it twice.",
       "Harbor Authority hired us to test their public booking website. Just that. Their crane and ferry controls, the OT, are explicitly out of scope. Read it. Then we talk about the part where someone always wants to touch the thing they were told not to touch.",
@@ -546,6 +623,17 @@ export const TICKETS: Ticket[] = [
     ],
     questions: [
       {
+        type: "spot",
+        id: "q_pt_spot",
+        prompt: "Click the line in the rules of engagement that puts the crane controls off limits.",
+        evidence: "ev_scope",
+        answer: ["l2"],
+        explainRight: "Right. The 10.20.0.0/16 network, cranes, ferries and gates, is out of scope. Keep that line in your head for the rest of the test.",
+        explainWrong: "It is the out-of-scope line for 10.20.0.0/16: crane, ferry and gate controls. Scope lists what you may not touch as clearly as what you may.",
+        teaches: "scope",
+        hint: "Scope documents list what you may not touch as clearly as what you may.",
+      },
+      {
         type: "single",
         id: "q_pt_finding",
         prompt: "You can read other people's bookings by changing a number in the URL. What is this flaw?",
@@ -559,6 +647,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. The app trusts the id in the URL instead of checking permission. Change the number, see someone else's data. Broken access control.",
         explainWrong: "This is broken access control. The app serves records based on a number in the URL without checking whether you are authorized. Classic flaw.",
         teaches: "scope",
+        hint: "The site never asks whether booking 1042 belongs to you.",
       },
       {
         type: "decision",
@@ -594,6 +683,10 @@ export const TICKETS: Ticket[] = [
     client: "Lanternhouse (internal)",
     title: "Connecting the threads",
     xp: 90,
+    attack: [
+      { id: "T1078", name: "Valid Accounts" },
+      { id: "T1219", name: "Remote Access Tools" },
+    ],
     requires: ["knows_truth"],
     brief: [
       "Juno has cleared a whole wall. String everywhere.",
@@ -626,6 +719,17 @@ export const TICKETS: Ticket[] = [
     ],
     questions: [
       {
+        type: "spot",
+        id: "q_intel_spot",
+        prompt: "Click the one indicator that shows up at every affected client.",
+        evidence: "ev_intel_iocs",
+        answer: ["l2"],
+        explainRight: "Right. The address and the domain each appear at two clients. The never-rotated HarborWatch credential is present at all of them.",
+        explainWrong: "The address and the domain each link two incidents. Only the HarborWatch shared credential is present at every affected client.",
+        teaches: "ioc",
+        hint: "Two indicators each show up at two clients. Count where each one appears.",
+      },
+      {
         type: "multi",
         id: "q_intel_links",
         prompt: "Which facts genuinely link these incidents? Select all that hold up.",
@@ -639,6 +743,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Good. Shared address, shared domain, shared credential, those are real connective evidence. 'Same town' alone proves nothing, Port Halden is small.",
         explainWrong: "The address, the domain, and the shared credential are real links. 'Same town' is not evidence, it is just geography in a town this size.",
         teaches: "ioc",
+        hint: "For each option, ask: is this a technical trace, or just a fact about the town?",
       },
       {
         type: "single",
@@ -654,6 +759,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. Describe the behavior and the capability honestly. Inside knowledge is a finding. A name is a claim you cannot yet support.",
         explainWrong: "You can say the actor has inside knowledge and reuses the old credential. You cannot name a person yet. State what the evidence carries, no further.",
         teaches: "attribution",
+        hint: "Write only what the evidence supports today, not what it might show next week.",
       },
     ],
     closingRight: [
@@ -672,6 +778,12 @@ export const TICKETS: Ticket[] = [
     client: "Halden Water & Light",
     title: "Something is in the plant network",
     xp: 100,
+    attack: [
+      { id: "T1078", name: "Valid Accounts" },
+      { id: "T1021.002", name: "SMB/Windows Admin Shares" },
+      { id: "T1046", name: "Network Service Discovery" },
+      { id: "T1555", name: "Credentials from Password Stores" },
+    ],
     brief: [
       "The lights are running on the emergency circuit, everything tinted red. Mags is already standing.",
       "Water and Light just tripped our alert. Someone is moving inside their business network, toward the boundary with the control systems. This is the one that matters. Read it fast, tell me what you see, then we move.",
@@ -712,6 +824,17 @@ export const TICKETS: Ticket[] = [
     ],
     questions: [
       {
+        type: "spot",
+        id: "q_plant_spot",
+        prompt: "Click the process the attacker logged in through.",
+        evidence: "ev_plant_tree",
+        answer: ["n1"],
+        explainRight: "Right. The HarborWatch agent, running as the shared admin credential. The scanner and the credential collector were started from it.",
+        explainWrong: "It is the HarborWatch remote-admin agent. The scanner and the credential collector are its children, started after the attacker logged in through it.",
+        teaches: "lateral-movement",
+        hint: "The scan and the collector were started by something. Look at their parent.",
+      },
+      {
         type: "single",
         id: "q_plant_where",
         prompt: "Where is the attacker right now, and where are they trying to go?",
@@ -725,6 +848,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Right. They are on the jump box in the business network, testing the OT boundary. Not through yet. That gap is the whole ballgame, and it is closing.",
         explainWrong: "They are on the jump box in the business network, probing the firewall to the OT side, not through it yet. The boundary is still holding, for now.",
         teaches: "ot",
+        hint: "Read the flows. Has anything crossed the OT firewall, or has it only been probed?",
       },
       {
         type: "single",
@@ -740,6 +864,7 @@ export const TICKETS: Ticket[] = [
         explainRight: "Correct. Same address, same shared admin credential that was never rotated. The five-year-old open door, walked through one more time.",
         explainWrong: "It is the same never-rotated HarborWatch credential from the same hosting address. Not a new flaw, the old unlocked door again.",
         teaches: "lateral-movement",
+        hint: "The process tree says which login the remote tool is running under.",
       },
     ],
     closingRight: [

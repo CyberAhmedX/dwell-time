@@ -5,6 +5,7 @@ import { SCENES } from "../src/content/scenes";
 import { CHAPTERS } from "../src/content/chapters";
 import { CODEX } from "../src/content/codex";
 import { ENDINGS } from "../src/engine/endings";
+import { pickTargets } from "../src/engine/pick";
 
 // Gather every string of player-facing text so we can assert house rules on it.
 function allText(): string[] {
@@ -26,6 +27,7 @@ function allText(): string[] {
   }
   for (const t of TICKETS) {
     push(t.title);
+    (t.attack ?? []).forEach((a) => push(a.name));
     push(t.brief.join(" "));
     t.closingRight.forEach(push);
     for (const ev of t.evidence) {
@@ -62,12 +64,16 @@ function allText(): string[] {
     }
     for (const q of t.questions) {
       push(q.prompt);
+      if (q.type !== "decision") push(q.hint);
       if (q.type === "single" || q.type === "multi") {
         q.options.forEach(push);
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "order") {
         q.items.forEach(push);
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "spot") {
         push(q.explainRight);
         push(q.explainWrong);
       } else {
@@ -232,5 +238,58 @@ describe("answer options do not give the answer away", () => {
       return lens[q.answer] === Math.max(...lens) && lens.filter((l) => l === lens[q.answer]).length === 1;
     });
     expect(longest.length, longest.map((q) => q.id).join(", ")).toBeLessThanOrEqual(Math.floor(singles.length / 3));
+  });
+});
+
+describe("spot questions, hints and ATT&CK tags", () => {
+  const graded = TICKETS.flatMap((t) => t.questions.filter((q) => q.type !== "decision").map((q) => ({ t, q })));
+
+  it("every spot question points at evidence in its own ticket and at parts that exist", () => {
+    for (const t of TICKETS) {
+      for (const q of t.questions) {
+        if (q.type !== "spot") continue;
+        const ev = t.evidence.find((e) => e.id === q.evidence);
+        expect(ev, `${q.id}: evidence ${q.evidence}`).toBeDefined();
+        const keys = new Set(pickTargets(ev!).map((p) => p.key));
+        expect(q.answer.length).toBeGreaterThan(0);
+        for (const a of q.answer) expect(keys.has(a), `${q.id}: ${a} is not a part of ${q.evidence}`).toBe(true);
+        // there has to be something wrong to click as well
+        expect(keys.size).toBeGreaterThan(q.answer.length);
+      }
+    }
+  });
+
+  it("every graded case question has a hint", () => {
+    const missing = graded.filter(({ q }) => !q.hint).map(({ q }) => q.id);
+    expect(missing).toEqual([]);
+  });
+
+  it("no hint quotes the right answer", () => {
+    for (const { q } of graded) {
+      if (!q.hint) continue;
+      const hint = q.hint.toLowerCase();
+      const right = q.type === "single" ? [q.options[q.answer]] : q.type === "multi" ? q.answer.map((i) => q.options[i]) : [];
+      for (const r of right) expect(hint.includes(r.toLowerCase()), `${q.id}: hint gives away "${r}"`).toBe(false);
+    }
+  });
+
+  it("question ids are unique", () => {
+    const ids = [...TICKETS.flatMap((t) => t.questions.map((q) => q.id)), ...INTERVIEWS.flatMap((iv) => iv.questions.map((q) => q.id))];
+    expect(ids.length).toBe(new Set(ids).size);
+  });
+
+  it("ATT&CK tags are well formed and not repeated within a case", () => {
+    for (const t of TICKETS) {
+      const ids = (t.attack ?? []).map((a) => a.id);
+      for (const a of t.attack ?? []) {
+        expect(a.id, t.id).toMatch(/^T\d{4}(\.\d{3})?$/);
+        expect(a.name.length).toBeGreaterThan(2);
+      }
+      expect(new Set(ids).size, t.id).toBe(ids.length);
+    }
+  });
+
+  it("the ATT&CK field note exists, since closing a tagged case unlocks it", () => {
+    expect(CODEX.some((c) => c.id === "attack")).toBe(true);
   });
 });

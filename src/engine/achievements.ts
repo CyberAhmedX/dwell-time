@@ -53,6 +53,12 @@ export const ACHIEVEMENTS: Achievement[] = [
     earned: (s) => finished(s) && s.integrity >= 6,
   },
   {
+    id: "no_hints",
+    title: "No Peeking",
+    desc: "Finish a run without buying a single hint.",
+    earned: (s) => finished(s) && s.hintsUsed === 0,
+  },
+  {
     id: "every_ending",
     title: "Every Ending",
     desc: "See all five endings.",

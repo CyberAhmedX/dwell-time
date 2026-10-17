@@ -150,6 +150,16 @@ export const CODEX: CodexEntry[] = [
       "A username in a log is not a person. Credentials get stolen, tools get shared, trails get planted. Say what the evidence supports and no more.",
     ],
   },
+  {
+    id: "attack",
+    term: "MITRE ATT&CK",
+    dept: "general",
+    body: [
+      "ATT&CK is a free, public catalog of the techniques real attackers use, built from reported incidents. Each technique has an ID, like T1566 for phishing or T1078 for using valid accounts.",
+      "The IDs are a shared language. A detection rule, an incident report and a threat intel profile can all point at the same technique, so teams compare notes without arguing about wording.",
+      "A technique tag says what was done, not who did it. Two unrelated groups can use the same technique on the same day.",
+    ],
+  },
 ];
 
 export function codexById(id: string): CodexEntry | undefined {

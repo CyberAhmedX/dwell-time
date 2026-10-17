@@ -423,7 +423,6 @@ body {
 table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: calc(12px * var(--ts)); }
 .log th, .log td, .flow th, .flow td { text-align: left; padding: 5px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); white-space: nowrap; }
 .log th, .flow th { color: var(--teal); font-weight: 500; }
-.row-bad td { color: var(--rose); background: rgba(224, 98, 119, 0.08); }
 .flow .arrow { color: var(--muted); }
 .flow .note { font-family: var(--body); color: var(--muted); white-space: normal; }
 .flowwrap { padding: 10px 12px; }
@@ -686,3 +685,38 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 /* Chapter select */
 .cs-title { display: block; font-weight: 600; }
 .cs-note { display: block; font-size: calc(12.5px * var(--ts)); color: var(--muted); margin-top: 2px; }
+
+/* Hints: bought with XP, shown under the question */
+.hint { margin: -6px 0 12px; }
+.hint-btn {
+  font: inherit;
+  font-size: calc(12.5px * var(--ts));
+  color: var(--amber-soft);
+  background: transparent;
+  border: 1px dashed rgba(228, 169, 74, 0.5);
+  border-radius: 7px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.hint-btn:hover { border-style: solid; }
+.hint-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.hint-text { margin: 0; padding: 9px 12px; border-left: 3px solid var(--amber); background: rgba(228, 169, 74, 0.08); font-size: calc(14px * var(--ts)); color: var(--fg-dim); border-radius: 0 7px 7px 0; }
+
+/* Spot questions: click the part of the evidence you mean */
+.spot-btn { align-self: flex-start; }
+.spot-pick { margin: 10px 0 0; font-size: calc(13.5px * var(--ts)); color: var(--fg-dim); font-family: var(--mono); word-break: break-word; }
+.ev.picking { outline: 2px solid var(--teal); outline-offset: 3px; }
+.pick-banner { font-size: calc(12.5px * var(--ts)); color: var(--ink); background: var(--teal); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; }
+.ev.picking [data-pick] { cursor: pointer; }
+.ev.picking [data-pick]:hover, .ev.picking [data-pick]:focus-visible { outline: 2px dashed var(--teal); outline-offset: 1px; background: rgba(70, 198, 184, 0.1); }
+[data-pick].picked { outline: 2px solid var(--amber); outline-offset: 1px; background: rgba(228, 169, 74, 0.12); }
+[data-pick].pick-right { outline: 2px solid var(--good); outline-offset: 1px; background: rgba(95, 196, 138, 0.12); }
+[data-pick].pick-wrong { outline: 2px solid var(--bad); outline-offset: 1px; background: rgba(224, 98, 119, 0.12); }
+.q-panel.done .spot-btn, .q-panel.done .hint-btn { display: none; }
+
+/* MITRE ATT&CK techniques, shown once a case is solved */
+.attack { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 12px; }
+.attack-k { font-family: var(--display); font-size: calc(10px * var(--ts)); letter-spacing: 1px; color: var(--teal); margin-right: 2px; }
+.attack-tag { font-family: var(--mono); font-size: calc(12px * var(--ts)); color: var(--fg-dim); border: 1px solid var(--edge); border-radius: 6px; padding: 3px 8px; background: rgba(0, 0, 0, 0.2); }
+/* keep scrolled-to evidence and questions clear of the top bar */
+.ev, .q-block { scroll-margin-top: 120px; }
