@@ -31,7 +31,6 @@ export const TICKETS: Ticket[] = [
         headers: {
           "Reply-To": "gregor.pay@mailbox-portal.test",
           "Return-Path": "bounce@mailbox-portal.test",
-          "Display name": "Gregor Brightloaf",
         },
         body: [
           "Hi, I'm about to get on a flight and can't take calls.",

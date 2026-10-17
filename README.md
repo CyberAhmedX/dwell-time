@@ -3,7 +3,7 @@
 <p align="center">A cozy-to-dark cybersecurity career simulation. Interview, investigate, and learn the trade one real case at a time.</p>
 
 <p align="center">
-  <a href="https://cyberahmedx.github.io/dwell-time/"><b>▶ Play in your browser</b></a>
+  <a href="https://cyberahmedx.github.io/dwell-time/"><b>Play in your browser</b></a>
   &nbsp;·&nbsp;
   <a href="#screenshots">Screenshots</a>
   &nbsp;·&nbsp;
@@ -38,16 +38,16 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 
 ## What makes it tick
 
-- **Six career tracks** with real interview questions: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Clear the interview to get hired.
-- **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant. You learn real cybersecurity by doing the work.
-- **Side quests**, multiple characters, and **Field Notes** that unlock plain explanations of each concept as you meet it.
+- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Pass one to get hired. After that every track plays the same story.
+- **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant.
+- **A side case** in chapter one, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **XP and ranks**: climb from Probationary Analyst to Lead Analyst as you close cases.
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
 - **Five endings** driven by your choices about integrity, trust, and the truth.
 
 ## Everything here is fictional and safe
 
-Every company, person, address, and domain is invented. All IP addresses come from documentation ranges (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) or private ranges, all domains use the reserved `.example` and `.test` TLDs, and no link points at a real system. The test suite enforces this automatically.
+Every company, person, address, and domain is invented. All IP addresses come from documentation ranges (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) or private ranges, all domains use the reserved `.example` and `.test` TLDs, and no link points at a real system. The test suite checks all of this.
 
 ## Run it locally
 
@@ -58,7 +58,7 @@ npm run build    # single self-contained HTML file in dist/
 npm run check    # lint + typecheck + tests
 ```
 
-The production build is one self-contained `dist/index.html` with no runtime network requests, so it works offline, hosts anywhere, installs as a web app, and can be wrapped into an Android build later with no rewrite.
+The production build is one self-contained `dist/index.html` of about 430 KB, fonts included. It makes no network requests, so it works offline and can be hosted anywhere.
 
 ## Project layout
 
@@ -76,6 +76,10 @@ media/       screenshots and the demo clip
 
 ## Tech
 
-TypeScript, Vite, Vitest, ESLint. No game engine and no runtime framework: the game is small and hand-built, which keeps the bundle lean and the code readable. CI runs lint, typecheck and tests on every push; a successful build auto-deploys to GitHub Pages.
+TypeScript, Vite, Vitest, ESLint. No game engine and no runtime framework. CI runs lint, typecheck and tests on every push; a successful build auto-deploys to GitHub Pages.
 
 See `CREDITS.md` for asset provenance and `PRIVACY.md` for the privacy note.
+
+## License
+
+All rights reserved. See `LICENSE`.

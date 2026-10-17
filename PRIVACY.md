@@ -10,9 +10,5 @@ Short version: the game does not collect anything about you.
 - **No analytics, no ads, no trackers, no third-party requests** at runtime.
   Fonts are built into the file, not fetched.
 
-If you later add crash reporting or analytics, or publish to an app store, you
-will need a fuller privacy policy. A ready template and a store-submission guide
-are in the repository's `game/compliance/` folder.
-
 This note is accurate for the game as built in this repository. It is not legal
 advice.
