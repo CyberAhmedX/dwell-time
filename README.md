@@ -38,9 +38,9 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 
 ## What makes it tick
 
-- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Pass one to get hired. After that every track plays the same story.
+- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Pass one to get hired, and your team gives you a case of its own in chapter two. The rest of the story is shared.
 - **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant.
-- **A side case** in chapter one, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
+- **A side case in every chapter**, from a cat on the keyboard to a backup audit, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **Click the evidence**: some questions ask you to point at the exact log row, email header, timeline event or process that proves it, the way an analyst would.
 - **Hints that cost XP** when you are stuck, so guessing is never cheaper than reading.
 - **MITRE ATT&CK tags** on each solved case, naming the real technique it covered (for example T1566 Phishing).
@@ -63,7 +63,7 @@ npm run build    # single self-contained HTML file in dist/
 npm run check    # lint + typecheck + tests
 ```
 
-The production build is one self-contained `dist/index.html` of about 450 KB, fonts included. It makes no network requests, so it works offline and can be hosted anywhere.
+The production build is one self-contained `dist/index.html` of about 500 KB, fonts included. It makes no network requests, so it works offline and can be hosted anywhere.
 
 ## Project layout
 

@@ -52,7 +52,7 @@ export const RANK_TITLES = [
 
 // Lead Analyst needs a strong run: most cases closed clean on the first try.
 // tests/engine.test.ts checks every rank stays reachable with the cases that exist.
-export const RANK_THRESHOLDS = [0, 1, 100, 250, 450, 700] as const;
+export const RANK_THRESHOLDS = [0, 1, 110, 290, 520, 830] as const;
 
 const SAVE_KEY = "dwell-time.save.v1";
 
@@ -121,6 +121,11 @@ export function xpForClose(baseXp: number, grade: CloseGrade): number {
   else if (grade.wrongAttempts === 1) xp = baseXp;
   else xp = Math.round(baseXp * 0.6);
   return Math.max(0, xp - (grade.hints ?? 0) * HINT_COST);
+}
+
+/** Set at hire, so each track's own case shows up only for that track. */
+export function trackFlag(dept: Dept): Flag {
+  return `track_${dept}`;
 }
 
 export function hasFlag(save: SaveData, flag: Flag): boolean {

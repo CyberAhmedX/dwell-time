@@ -19,7 +19,9 @@ import {
   wipe,
   xpForClose,
   HINT_COST,
+  trackFlag,
 } from "../src/engine/state";
+import { DEPTS, type Dept } from "../src/engine/types";
 import { TICKETS } from "../src/content/tickets";
 import { CHAPTERS } from "../src/content/chapters";
 import { resolveEnding, ENDINGS, F, FINALE_SUCCESS, FINALE_FAILED, LIGHTHOUSE_MIN_INTEGRITY } from "../src/engine/endings";
@@ -224,20 +226,27 @@ describe("hints", () => {
 });
 
 describe("rank pacing", () => {
-  const main = CHAPTERS.flatMap((c) => c.main).map((id) => TICKETS.find((t) => t.id === id)!);
-  const all = CHAPTERS.flatMap((c) => [...c.main, ...c.side]).map((id) => TICKETS.find((t) => t.id === id)!);
-  const total = (list: typeof all, wrongAttempts: number) =>
+  // what one player sees: the shared cases plus their own track's case
+  const forTrack = (d: Dept) => (t: (typeof TICKETS)[number]) =>
+    !(t.requires ?? []).some((f) => f.startsWith("track_") && f !== trackFlag(d));
+  const cases = (d: Dept, withSides: boolean) =>
+    CHAPTERS.flatMap((c) => (withSides ? [...c.main, ...c.side] : c.main))
+      .map((id) => TICKETS.find((t) => t.id === id)!)
+      .filter(forTrack(d));
+  const total = (list: typeof TICKETS, wrongAttempts: number) =>
     list.reduce((sum, t) => sum + xpForClose(t.xp, { wrongAttempts, botched: false }), 0);
+  const lead = RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
+  const senior = RANK_THRESHOLDS[RANK_THRESHOLDS.length - 2];
 
-  it("Lead Analyst is reachable by closing the main cases clean", () => {
-    expect(total(main, 0)).toBeGreaterThanOrEqual(RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1]);
+  it("Lead Analyst is reachable on every track by closing the main cases clean", () => {
+    for (const d of DEPTS) expect(total(cases(d, false), 0), d).toBeGreaterThanOrEqual(lead);
   });
 
   it("Lead Analyst is not handed out for scraping through every case", () => {
-    expect(total(all, 1)).toBeLessThan(RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1]);
+    for (const d of DEPTS) expect(total(cases(d, true), 1), d).toBeLessThan(lead);
   });
 
   it("Senior Analyst is reachable even with one retry on every case", () => {
-    expect(total(all, 1)).toBeGreaterThanOrEqual(RANK_THRESHOLDS[RANK_THRESHOLDS.length - 2]);
+    for (const d of DEPTS) expect(total(cases(d, true), 1), d).toBeGreaterThanOrEqual(senior);
   });
 });

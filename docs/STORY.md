@@ -58,7 +58,7 @@ Rules for all writing:
 |---|---|---|---|
 | Prologue | Application | Bright lobby | Pick a career track, then a real interview |
 | 1 | Fair Weather | Sunny morning | Help Desk and SOC basics |
-| 2 | Overcast | Grey afternoon | Network and SOC |
+| 2 | Overcast | Grey afternoon | Network and SOC, plus a case for your own team |
 | 3 | Squall | Rainy evening, desk lamps | Forensics |
 | 4 | Gale | Storm at night, lightning | Pentest and threat intel |
 | 5 | Storm Surge | Blackout, emergency lights | Full incident response |
@@ -68,13 +68,26 @@ Rules for all writing:
 
 | Where | Choice | Effect |
 |---|---|---|
-| Ch1 | Theo asks you to bulk-close stale tickets unread | Integrity |
-| Ch2 | Walter tells you to approve a vendor "allow any" firewall rule | Integrity, or leave a door open for the finale |
+| Ch2 | Your team's own case ends with a judgment call: report honestly or smooth it over | Integrity |
 | Ch3 | Walter asks you to skip chain of custody | Keeps or breaks the evidence chain |
 | Ch3 | An anonymous message arrives. Reply, tell Mags, or tell Walter | Trust with Nadia, integrity, or loyalty |
-| Ch4 | Someone suggests testing the out-of-scope OT network | Integrity |
+| Ch4 | Someone suggests testing the out-of-scope OT network | Integrity, and crossing it leaves a door open for the finale |
 | Ch4 | Walter offers you a promotion to bury the St. Brennan's link | Loyalty or integrity |
+| Ch5 | How you contain the attack at the plant | Get it wrong and the ending is Dead Water |
 | Ch5 | What you do with the evidence | Picks the ending |
+
+## Team cases and side cases
+
+After the interview, everyone works the same story, but your own team hands you one case of its own in chapter two:
+
+- **SOC:** a password spray against the clinic VPN.
+- **Network:** a guest wifi that can reach the staff file server.
+- **Help Desk:** MFA fatigue on the school principal's account.
+- **Forensics:** two disk images of a Brightloaf PC, only one of which can be trusted.
+- **Pentest:** an external test of the water plant, with a default login and an exposed HarborWatch page.
+- **Threat Intel:** a Tollkeepers leak-site claim against the school.
+
+Each chapter also has one optional side case: a library printer, Packet on Mags's keyboard, a vishing call to the clinic, a backup audit with Celeste, and Celeste's review of who still has HarborWatch admin.
 
 ## The five endings
 
@@ -82,7 +95,7 @@ Rules for all writing:
 2. **Low Tide.** You give the evidence to Nadia and she publishes it. Lanternhouse collapses. The water stays clean. You and a few colleagues start a small co-op security shop on the pier. *Follows whenever you give Nadia the evidence.*
 3. **Company Keeper.** You stop the attack and bury the truth. Walter makes you Director of Operations. The office is quiet now and nobody brings their cat. *Follows when you keep the St. Brennan's link inside the company.*
 4. **Cracked Lens.** You report everything externally, but with a broken chain of custody or a record of cut corners. The truth still comes out, slowly, and half the exhibits are thrown out. You keep your job under review. *Follows an external report that does not qualify for The Lighthouse.*
-5. **Dead Water.** The finale goes badly. The Tollkeepers reach the plant, the town is put under a boil-water notice, and somebody needs to take the blame. It is you, the same way it was Nadia. *Happens if the finale response fails. Earlier choices, like the open firewall door or silencing Nadia, make that much more likely.*
+5. **Dead Water.** The finale goes badly. The Tollkeepers reach the plant, the town is put under a boil-water notice, and somebody needs to take the blame. It is you, the same way it was Nadia. *Happens if the finale response fails. Crossing scope at the harbor, or botching the plant recon, takes the clean response off the table.*
 
 ## Rank ladder
 

@@ -151,6 +151,46 @@ export const CODEX: CodexEntry[] = [
     ],
   },
   {
+    id: "password-spray",
+    term: "Password spraying",
+    dept: "soc",
+    body: [
+      "Instead of trying many passwords on one account, a spray tries one common password on many accounts, slowly enough to stay under lockout limits.",
+      "It works because somebody, somewhere, still has Spring2026 or the temporary password from their first day. The tell is one source touching dozens of accounts once each.",
+      "MFA and banning common passwords take most of the sting out of it.",
+    ],
+  },
+  {
+    id: "segmentation",
+    term: "Network segmentation",
+    dept: "network",
+    body: [
+      "Segmentation splits a network into zones with rules between them: guests, staff, servers, and the machines that run physical things.",
+      "It turns one break-in into a contained one. A laptop on the guest wifi should reach the internet and nothing else.",
+      "The rules between zones matter more than the zones. One temporary allow rule can undo all of it.",
+    ],
+  },
+  {
+    id: "default-credentials",
+    term: "Default credentials",
+    dept: "pentest",
+    body: [
+      "Many devices ship with a known username and password, like admin/admin, printed in a manual anyone can read.",
+      "If nobody changes them, the device is open to everyone who finds it, and attackers scan the internet for exactly these.",
+      "Change defaults on day one, and keep admin pages off the internet.",
+    ],
+  },
+  {
+    id: "social-engineering",
+    term: "Social engineering",
+    dept: "helpdesk",
+    body: [
+      "Social engineering hacks the person instead of the computer: a call, a message or a visit that talks someone into helping.",
+      "It leans on urgency, authority and helpfulness. A deadline, a title, a friendly voice.",
+      "The defense is a habit: hang up and call back on a number you already have. Real IT can wait two minutes.",
+    ],
+  },
+  {
     id: "attack",
     term: "MITRE ATT&CK",
     dept: "general",
