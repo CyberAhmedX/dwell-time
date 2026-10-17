@@ -6,3 +6,5 @@ coverage/
 .env.*
 *.jks
 *.keystore
+test-results/
+playwright-report/

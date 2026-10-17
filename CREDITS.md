@@ -28,7 +28,7 @@ They are delivered via the `@fontsource` packages and inlined into the build.
 
 ## Libraries
 
-Build and test tooling only (Vite, Vitest, ESLint, TypeScript). None of it ships
+Build and test tooling only (Vite, Vitest, Playwright, ESLint, TypeScript). None of it ships
 in the final game; the production build is a single self-contained HTML file.
 
 ## License
