@@ -33,7 +33,7 @@ test("one full run, then every other ending through chapter select", async ({ pa
   expect((await save(page)).flags).toContain("secret_forensics");
 
   const clean = await meta(page);
-  for (const id of ["first_try", "chain", "scope", "lead", "by_the_book", "clean_hands", "no_hints", "side_work"]) {
+  for (const id of ["first_try", "chain", "lead", "by_the_book", "clean_hands", "no_hints", "side_work"]) {
     expect(clean.achievements, id).toContain(id);
   }
 

@@ -48,7 +48,7 @@ export const CHAPTERS: ChapterPlan[] = [
     title: "Chapter Four",
     subtitle: "Gale",
     intro: "s4_intro",
-    main: ["t4_harbor_pentest", "t4_intel_correlate"],
+    main: ["t4_harbor_pentest", "t4_intel_correlate", "t4_soc", "t4_network", "t4_helpdesk", "t4_forensics"],
     side: ["sd_backups"],
     outro: ["s4_walter_offer"],
   },

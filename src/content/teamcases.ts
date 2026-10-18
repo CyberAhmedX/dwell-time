@@ -30,7 +30,7 @@ const TEAM_SOC: Ticket = {
   severity: "high",
   client: "St. Brennan's Clinic",
   title: "The alerts that never fired",
-  xp: 85,
+  xp: 100,
   requires: ["track_soc", "clinic_examined"],
   attack: [
     { id: "T1562.001", name: "Impair Defenses: Disable or Modify Tools" },
@@ -117,7 +117,7 @@ const TEAM_NETWORK: Ticket = {
   severity: "high",
   client: "St. Brennan's Clinic",
   title: "Where the clinic's data went",
-  xp: 85,
+  xp: 100,
   requires: ["track_network", "clinic_examined"],
   attack: [
     { id: "T1048", name: "Exfiltration Over Alternative Protocol" },
@@ -199,7 +199,7 @@ const TEAM_HELPDESK: Ticket = {
   severity: "high",
   client: "St. Brennan's Clinic",
   title: "The account nobody opened",
-  xp: 85,
+  xp: 100,
   requires: ["track_helpdesk", "clinic_examined"],
   attack: [
     { id: "T1136", name: "Create Account" },
@@ -308,7 +308,7 @@ const TEAM_PENTEST: Ticket = {
   severity: "high",
   client: "St. Brennan's Clinic",
   title: "How did they get in?",
-  xp: 85,
+  xp: 100,
   requires: ["track_pentest", "clinic_examined"],
   attack: [
     { id: "T1133", name: "External Remote Services" },
@@ -402,7 +402,7 @@ const TEAM_INTEL: Ticket = {
   severity: "high",
   client: "St. Brennan's Clinic",
   title: "Who used that address before",
-  xp: 85,
+  xp: 100,
   requires: ["track_intel", "clinic_examined"],
   attack: [
     { id: "T1583.001", name: "Acquire Infrastructure: Domains" },

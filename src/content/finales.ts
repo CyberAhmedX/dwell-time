@@ -16,7 +16,7 @@ const FINALE_NETWORK: Ticket = {
   severity: "critical",
   client: "Halden Water & Light",
   title: "Cut the line, keep the water safe",
-  xp: 100,
+  xp: 120,
   live: { seconds: 300 },
   requires: ["track_network"],
   attack: [
@@ -97,7 +97,7 @@ const FINALE_HELPDESK: Ticket = {
   severity: "critical",
   client: "Halden Water & Light",
   title: "Kill the key, calm the floor",
-  xp: 100,
+  xp: 120,
   live: { seconds: 300 },
   requires: ["track_helpdesk"],
   attack: [
@@ -189,7 +189,7 @@ const FINALE_FORENSICS: Ticket = {
   severity: "critical",
   client: "Halden Water & Light",
   title: "Catch it before it's gone",
-  xp: 100,
+  xp: 120,
   live: { seconds: 300 },
   requires: ["track_forensics"],
   attack: [
@@ -254,7 +254,7 @@ const FINALE_PENTEST: Ticket = {
   severity: "critical",
   client: "Halden Water & Light",
   title: "Prove the door is shut",
-  xp: 100,
+  xp: 120,
   live: { seconds: 300 },
   requires: ["track_pentest"],
   attack: [{ id: "T1133", name: "External Remote Services" }],
@@ -318,7 +318,7 @@ const FINALE_INTEL: Ticket = {
   severity: "critical",
   client: "Halden Water & Light",
   title: "Name the moves, call the block",
-  xp: 100,
+  xp: 120,
   live: { seconds: 300 },
   requires: ["track_intel"],
   attack: [

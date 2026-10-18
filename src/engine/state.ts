@@ -53,7 +53,7 @@ export const RANK_TITLES = [
 
 // Lead Analyst needs a strong run: most cases closed clean on the first try.
 // tests/engine.test.ts checks every rank stays reachable with the cases that exist.
-export const RANK_THRESHOLDS = [0, 1, 110, 290, 520, 830] as const;
+export const RANK_THRESHOLDS = [0, 1, 110, 290, 520, 750] as const;
 
 const SAVE_KEY = "dwell-time.save.v1";
 
