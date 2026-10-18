@@ -3,6 +3,7 @@ import { el } from "./dom";
 import { terminalView } from "./terminal";
 import { siemView } from "./siem";
 import { firewallView } from "./firewall";
+import { consoleView } from "./console";
 
 // Render each evidence kind into its own little viewer. These are the "tools"
 // the analyst reads: an email client, a log table, a chat, a flow summary, a
@@ -30,6 +31,8 @@ function viewFor(ev: Evidence, opts: EvidenceOptions): HTMLElement {
       return shell(ev.label, "SIEM", siemView(ev));
     case "firewall":
       return shell(ev.label, "FIREWALL", firewallView(ev));
+    case "console":
+      return shell(ev.label, "ADMIN", consoleView(ev));
     case "email":
       return emailView(ev);
     case "log":

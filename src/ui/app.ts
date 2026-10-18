@@ -25,6 +25,8 @@ import {
 import { pickTargets } from "../engine/pick";
 import { answerMatches } from "../engine/answer";
 import { rulesPass, replay, RuleError } from "../engine/firewall";
+import { goalMet, goalsMet, MFA_LABEL, type ConsoleAction } from "../engine/console";
+import { consoleStateOf } from "./console";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
 import {
   type MetaData,
@@ -500,7 +502,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0, firewall: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0, console: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -578,6 +580,7 @@ export class App {
         used.terminal ? `${used.terminal} command${used.terminal === 1 ? "" : "s"}` : "",
         used.siem ? `${used.siem} search${used.siem === 1 ? "" : "es"}` : "",
         used.firewall ? `${used.firewall} replay${used.firewall === 1 ? "" : "s"}` : "",
+        used.console ? `${used.console} admin action${used.console === 1 ? "" : "s"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
@@ -660,6 +663,7 @@ export class App {
     if (q.type === "spot") return this.spotQuestion(q, wrap, ctx);
     if (q.type === "typed") return this.typedQuestion(q, wrap);
     if (q.type === "rules") return this.rulesQuestion(q, wrap, ctx);
+    if (q.type === "console") return this.consoleQuestion(q, wrap, ctx);
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -840,6 +844,43 @@ export class App {
     });
     box.append(b);
     return box;
+  }
+
+  private consoleQuestion(q: Extract<Question, { type: "console" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
+    const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence);
+    if (ev?.kind !== "console") throw new Error(`${q.id}: ${q.evidence} is not a console`);
+    const view = ctx.evPanel.querySelector<HTMLElement>(`[data-ev="${q.evidence}"]`)!;
+    const state = consoleStateOf(view)!;
+    wrap.append(el("p", { class: "rules-progress", text: `Work in "${ev.label}". Submit when the account is safe.` }));
+    const expl = el("div", { class: "explain", hidden: true });
+    wrap.append(expl);
+    const isRight = (): boolean => goalsMet(state, q.goals, ev.users);
+    return {
+      ready: () => true,
+      correct: isRight,
+      reveal: () => {
+        view.classList.add("adm-done");
+        expl.hidden = false;
+        expl.className = isRight() ? "explain good" : "explain bad";
+        mount(
+          expl,
+          el("p", { text: isRight() ? q.explainRight : q.explainWrong }),
+          el(
+            "ul",
+            { class: "goal-list" },
+            q.goals.map((g) => {
+              const met = goalMet(state, g, ev.users);
+              return el("li", { class: met ? "met" : "missed" }, [el("span", { class: "goal-mark", text: met ? "Done" : "Missed" }), el("span", { text: g.label })]);
+            }),
+          ),
+          el("p", { class: "typed-way", text: "One way to do it:" }),
+          el("ol", { class: "goal-steps" }, q.solution.map((a) => el("li", { text: describeAction(a, ev.users) }))),
+        );
+      },
+      mark: () => markBlock(wrap, isRight()),
+      apply: () => {},
+      focus: () => view.scrollIntoView({ behavior: scrollMotion(), block: "start" }),
+    };
   }
 
   private rulesQuestion(q: Extract<Question, { type: "rules" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
@@ -1648,6 +1689,25 @@ interface QuestionContext {
   evPanel: HTMLElement;
   review: boolean;
   disarm: (() => void) | null; // stops whichever spot question is picking
+}
+
+function describeAction(a: ConsoleAction, users: readonly { upn: string; rules: { id: string; name: string }[] }[]): string {
+  switch (a.type) {
+    case "reset":
+      return `Reset the password for ${a.upn}.`;
+    case "revoke":
+      return `Revoke all of ${a.upn}'s sessions.`;
+    case "delete-rule": {
+      const r = users.find((u) => u.upn === a.upn)?.rules.find((x) => x.id === a.rule);
+      return `Delete the mailbox rule "${r?.name ?? a.rule}".`;
+    }
+    case "mfa":
+      return `Set MFA to ${MFA_LABEL[a.method].toLowerCase()}.`;
+    case "block":
+      return a.on ? `Block sign-in for ${a.upn}.` : `Allow sign-in for ${a.upn}.`;
+    case "delete-user":
+      return `Delete ${a.upn}.`;
+  }
 }
 
 function hintFlag(q: Question): string {

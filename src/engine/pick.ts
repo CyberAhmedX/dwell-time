@@ -13,6 +13,7 @@ export function pickTargets(ev: Evidence): PickTarget[] {
     case "terminal":
     case "siem":
     case "firewall":
+    case "console":
       return []; // you type into these, you do not point at them
     case "email": {
       const out: PickTarget[] = [

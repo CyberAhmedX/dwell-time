@@ -8,6 +8,7 @@ import { ENDINGS } from "../src/engine/endings";
 import { pickTargets } from "../src/engine/pick";
 import { runSolution } from "../src/engine/solution";
 import { rulesPass } from "../src/engine/firewall";
+import { initConsole, act, goalsMet } from "../src/engine/console";
 import { answerMatches, normalizeAnswer } from "../src/engine/answer";
 import { DEPTS } from "../src/engine/types";
 import { trackFlag } from "../src/engine/state";
@@ -44,6 +45,13 @@ function allText(): string[] {
         });
       } else if (ev.kind === "siem") {
         ev.events.forEach((e) => Object.values(e).forEach(push));
+      } else if (ev.kind === "console") {
+        push(ev.tenant);
+        ev.users.forEach((u) => {
+          [u.upn, u.name, u.role].forEach(push);
+          u.sessions.forEach((x) => [x.device, x.ip, x.place].forEach(push));
+          u.rules.forEach((r) => [r.name, r.summary].forEach(push));
+        });
       } else if (ev.kind === "firewall") {
         push(ev.rules);
         Object.values(ev.zones).forEach((z) => z.forEach(push));
@@ -98,6 +106,10 @@ function allText(): string[] {
         push(q.explainWrong);
       } else if (q.type === "typed") {
         q.answer.forEach(push);
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "console") {
+        q.goals.forEach((g) => push(g.label));
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "rules") {
@@ -407,6 +419,23 @@ describe("firewall cases", () => {
       if (ev?.kind !== "firewall") continue;
       expect(rulesPass(q.solution, ev.flows, ev.zones), `${q.id}: solution`).toBe(true);
       expect(rulesPass(ev.rules, ev.flows, ev.zones), `${q.id}: starting rules already pass`).toBe(false);
+    }
+  });
+});
+
+describe("admin console cases", () => {
+  const consoleQs = TICKETS.flatMap((t) => t.questions.flatMap((q) => (q.type === "console" ? [{ t, q }] : [])));
+
+  it("the given solution meets every goal, and doing nothing meets none of the work", () => {
+    for (const { t, q } of consoleQs) {
+      const ev = t.evidence.find((e) => e.id === q.evidence);
+      expect(ev?.kind, q.id).toBe("console");
+      if (ev?.kind !== "console") continue;
+      const s = initConsole(ev.users);
+      for (const a of q.solution) act(s, a, ev.intruder);
+      expect(goalsMet(s, q.goals, ev.users), `${q.id}: solution`).toBe(true);
+      expect(goalsMet(initConsole(ev.users), q.goals, ev.users), `${q.id}: untouched console already passes`).toBe(false);
+      for (const g of q.goals) expect(g.label.length, q.id).toBeGreaterThan(10);
     }
   });
 });

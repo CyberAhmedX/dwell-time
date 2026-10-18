@@ -170,6 +170,19 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       await expect(fw.locator(".fw-status")).toHaveClass(/good/);
       return;
     }
+    case "console": {
+      const adm = page.locator(`[data-ev="${q.evidence}"]`);
+      for (const a of q.solution) {
+        await adm.locator(`.adm-user[data-upn="${a.upn}"]`).click();
+        if (a.type === "delete-rule") await adm.locator(`[data-act="delete-rule"][data-rule="${a.rule}"]`).click();
+        else if (a.type === "mfa") {
+          await adm.locator(`select[data-act="mfa"]`).selectOption(a.method);
+          await adm.locator(`[data-act="save-mfa"]`).click();
+        } else if (a.type === "block" || a.type === "delete-user") throw new Error("the bot never blocks or deletes");
+        else await adm.locator(`[data-act="${a.type}"]`).click();
+      }
+      return;
+    }
     case "spot":
       await block.locator(".spot-btn").click();
       await page.locator(`[data-ev="${q.evidence}"] [data-pick="${q.answer[0]}"]`).click();

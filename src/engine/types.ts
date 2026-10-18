@@ -1,6 +1,7 @@
 // Core data model for Dwell Time. Content is plain data so it can be unit tested.
 
 import type { Flow as FirewallFlow } from "./firewall";
+import type { ConsoleAction, ConsoleGoal, ConsoleIntruder, ConsoleUser } from "./console";
 
 export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
 
@@ -122,7 +123,18 @@ export interface FirewallEvidence {
   flows: FirewallFlow[]; // test traffic, each with the outcome the policy wants
 }
 
+// An identity admin console for one organisation. See engine/console.ts.
+export interface ConsoleEvidence {
+  kind: "console";
+  id: string;
+  label: string;
+  tenant: string; // organisation name shown at the top
+  users: ConsoleUser[];
+  intruder?: ConsoleIntruder; // comes back if sessions are revoked before the password is reset
+}
+
 export type Evidence =
+  | ConsoleEvidence
   | FirewallEvidence
   | SiemEvidence
   | TerminalEvidence
@@ -229,7 +241,21 @@ export interface RulesQuestion {
   hint?: string;
 }
 
-export type Question = RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Fix accounts in a console evidence item. Checked against goals when submitted.
+export interface ConsoleQuestion {
+  type: "console";
+  id: string;
+  prompt: string;
+  evidence: string; // console evidence id within the same ticket
+  goals: ConsoleGoal[]; // each has a label, shown with a tick or a cross once the case closes
+  solution: ConsoleAction[]; // one way to do it, in order; tests check it meets every goal
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+export type Question = ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {
