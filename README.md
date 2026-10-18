@@ -34,10 +34,10 @@ You are the newest hire at Lanternhouse Security, a small firm keeping a rainy h
 | ![Chapter one desk](media/desk-chapter1.png) | ![Chapter five, the storm](media/desk-storm.png) |
 | **Chapter One: Fair Weather** | **Chapter Five: Storm Surge** |
 
-| Do the job, not a quiz about it |
-| :---: |
-| ![Searching a SIEM for the password spray](media/tool-siem.png) |
-| **Real tools: a SIEM, a terminal, a firewall, a request editor and more** |
+| Do the job, not a quiz about it | Then do it against the clock |
+| :---: | :---: |
+| ![Searching a SIEM for the password spray](media/tool-siem.png) | ![A live incident at the boundary firewall](media/live-finale.png) |
+| **Real tools: a SIEM, a terminal, a firewall, a request editor and more** | **A live incident where every wrong move costs time** |
 
 The office darkens with the story: cozy and sunlit at first, then rain, then a storm blackout lit by emergency red. Lighting, weather, and the soundtrack all shift per chapter.
 
