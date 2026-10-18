@@ -41,6 +41,7 @@ import {
   recordEnding,
   recordCodex,
   recordCases,
+  recordSecrets,
   recordCheckpoint,
   checkpointCopy,
   canSelectChapter,
@@ -56,6 +57,7 @@ import { TICKETS, ticketById } from "../content/tickets";
 import { SCENES, sceneById } from "../content/scenes";
 import { CHAPTERS, chapterPlan } from "../content/chapters";
 import { CODEX } from "../content/codex";
+import { SECRETS } from "../content/secrets";
 import { el, mount, clear, shuffled } from "./dom";
 import { renderEvidence } from "./evidence";
 import { drawShareCard, shareFileName } from "./sharecard";
@@ -106,6 +108,7 @@ export class App {
     save(this.s);
     recordCodex(this.meta, this.s.codex);
     recordCases(this.meta, this.s.done.filter((id) => ticketById(id)));
+    recordSecrets(this.meta, this.s.flags);
     for (const a of checkAchievements(this.s, this.meta)) this.showToast(`Achievement: ${a.title}`);
     saveMeta(this.meta);
   }
@@ -1389,9 +1392,11 @@ export class App {
     const ending = resolveEnding(this.s);
     recordEnding(this.meta, ending.id);
     this.persist();
+    const found = SECRETS.filter((x) => hasFlag(this.s, x.flag));
     const lines = [
       { who: "narration", text: `Epilogue. ${ending.epigraph}` },
       ...ending.lines.map((text) => ({ who: "narration", text })),
+      ...found.map((x) => ({ who: "narration", text: x.ending })),
     ];
     this.playDialogue(lines, undefined, () => {
       const con = conduct(this.s);
@@ -1406,6 +1411,7 @@ export class App {
           stat("Case accuracy", `${acc}%`),
           stat("Botched", String(this.s.botched)),
           stat("Interviews failed", String(this.s.interviewFails)),
+          stat("Secrets found", `${found.length} of ${SECRETS.length}`),
           ...(this.s.hard ? [stat("Mode", "Hard")] : []),
         ]),
       ]);
@@ -1770,6 +1776,18 @@ export class App {
       );
     }
 
+    const files = el("div", { class: "gallery" });
+    for (const x of SECRETS) {
+      const got = this.meta.secretsEver.includes(x.flag);
+      files.append(
+        el("div", { class: got ? "gal-item seen" : "gal-item" }, [
+          el("div", { class: "gal-title", text: got ? x.title : "Not found yet" }),
+          el("p", { class: "gal-text", text: got ? x.found : `Only the ${DEPT_LABEL[x.dept]} team can find this one, in chapter three.` }),
+          el("p", { class: "gal-rank", text: DEPT_LABEL[x.dept] }),
+        ]),
+      );
+    }
+
     const panel = el("div", { class: "overlay-panel" }, [
       el("div", { class: "overlay-head" }, [
         el("h2", { text: "Endings" }),
@@ -1781,6 +1799,11 @@ export class App {
         el("span", { class: "muted", text: `${this.meta.achievements.length} of ${ACHIEVEMENTS.length} earned` }),
       ]),
       achievements,
+      el("div", { class: "overlay-head sub" }, [
+        el("h2", { text: "Case Files" }),
+        el("span", { class: "muted", text: `${this.meta.secretsEver.length} of ${SECRETS.length} secrets` }),
+      ]),
+      files,
     ]);
     overlay.append(panel);
     panel.append(this.closeBtn(close));

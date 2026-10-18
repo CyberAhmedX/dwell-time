@@ -85,3 +85,32 @@ describe("admin console", () => {
     expect(goalsMet(deleted, goals, users)).toBe(false);
   });
 });
+
+describe("goals for locking an account down", () => {
+  const users = [
+    { upn: "svc@x.example", name: "svc", role: "Service account", mfa: "off" as const, sessions: [{ id: "s1", device: "x", ip: "203.0.113.77", place: "?", since: "02:00" }], rules: [] },
+    { upn: "dr@x.example", name: "Dr", role: "Doctor", mfa: "number" as const, sessions: [], rules: [] },
+  ];
+  const goals = [
+    { kind: "blocked" as const, upn: "svc@x.example", label: "blocked" },
+    { kind: "no-sessions" as const, upn: "svc@x.example", label: "signed out" },
+    { kind: "untouched" as const, upn: "dr@x.example", label: "doctor left alone" },
+    { kind: "none-deleted" as const, upn: "svc@x.example", label: "kept as evidence" },
+  ];
+  it("passes when the account is blocked and signed out, and nothing else changes", () => {
+    const s = initConsole(users);
+    act(s, { type: "block", upn: "svc@x.example", on: true });
+    act(s, { type: "revoke", upn: "svc@x.example" });
+    expect(goalsMet(s, goals, users)).toBe(true);
+  });
+  it("fails if the account is deleted instead, or someone else is touched", () => {
+    const del = initConsole(users);
+    act(del, { type: "delete-user", upn: "svc@x.example" });
+    expect(goalsMet(del, goals, users)).toBe(false);
+    const extra = initConsole(users);
+    act(extra, { type: "block", upn: "svc@x.example", on: true });
+    act(extra, { type: "revoke", upn: "svc@x.example" });
+    act(extra, { type: "reset", upn: "dr@x.example" });
+    expect(goalMet(extra, goals[2], users)).toBe(false);
+  });
+});

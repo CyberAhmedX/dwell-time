@@ -64,7 +64,10 @@ export type ConsoleGoal =
   | { kind: "rule-removed"; upn: string; rule: string; label: string }
   | { kind: "rule-kept"; upn: string; rule: string; label: string }
   | { kind: "mfa"; upn: string; method: MfaMethod; label: string }
-  | { kind: "only-touched"; upn: string; label: string }; // and never blocked or deleted
+  | { kind: "only-touched"; upn: string; label: string } // and never blocked or deleted
+  | { kind: "blocked"; upn: string; label: string } // sign-in blocked, account kept
+  | { kind: "untouched"; upn: string; label: string } // this account left exactly as it was
+  | { kind: "none-deleted"; upn: string; label: string }; // no account deleted anywhere
 
 export function initConsole(users: readonly ConsoleUser[]): ConsoleState {
   return { users: JSON.parse(JSON.stringify(users)) as ConsoleUser[], log: [] };
@@ -129,6 +132,7 @@ export function act(state: ConsoleState, action: ConsoleAction, intruder?: Conso
 }
 
 export function goalMet(state: ConsoleState, goal: ConsoleGoal, start: readonly ConsoleUser[]): boolean {
+  if (goal.kind === "none-deleted") return !state.users.some((x) => x.deleted);
   const u = state.users.find((x) => x.upn === goal.upn);
   if (!u || u.deleted) return false;
   const firstReset = state.log.findIndex((l) => l.action.type === "reset" && l.action.upn === goal.upn);
@@ -147,6 +151,10 @@ export function goalMet(state: ConsoleState, goal: ConsoleGoal, start: readonly 
       return u.rules.some((r) => r.id === goal.rule);
     case "mfa":
       return u.mfa === goal.method;
+    case "blocked":
+      return !!u.blocked;
+    case "untouched":
+      return JSON.stringify(u) === JSON.stringify(start.find((x) => x.upn === goal.upn));
     case "only-touched": {
       if (state.users.some((x) => x.blocked || x.deleted)) return false;
       return state.users.every((x) => x.upn === goal.upn || JSON.stringify(x) === JSON.stringify(start.find((s) => s.upn === x.upn)));
