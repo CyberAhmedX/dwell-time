@@ -350,7 +350,8 @@ export interface InterviewTrack {
   dept: Dept;
   interviewer: string;
   intro: string[];
-  questions: SingleQuestion[]; // scored
+  questions: SingleQuestion[]; // the pool; each sitting asks a random handful
+  asks: number; // how many questions one sitting asks
   passLine: number; // min correct to be hired
   hiredText: string[];
   rejectedText: string[];

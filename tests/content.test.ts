@@ -275,7 +275,14 @@ describe("content integrity", () => {
   it("each interview is winnable and losable", () => {
     for (const iv of INTERVIEWS) {
       expect(iv.passLine).toBeGreaterThan(0);
-      expect(iv.passLine).toBeLessThanOrEqual(iv.questions.length);
+      expect(iv.passLine).toBeLessThanOrEqual(iv.asks);
+    }
+  });
+
+  it("each interview draws from a pool big enough that a retry is a different interview", () => {
+    for (const iv of INTERVIEWS) {
+      expect(iv.asks, iv.dept).toBeLessThanOrEqual(iv.questions.length);
+      expect(iv.questions.length, iv.dept).toBeGreaterThanOrEqual(iv.asks + 3);
     }
   });
 });

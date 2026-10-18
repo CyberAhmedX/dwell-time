@@ -14,6 +14,7 @@ function sample() {
   s.cleanCloses = 5;
   s.totalCloses = 6;
   s.hintsUsed = 1;
+  s.hard = true;
   setFlag(s, "evidence_chain_intact");
   s.done = ["intro_1", "t1_bakery_phish"];
   s.codex = ["phishing", "hashing"];
@@ -21,6 +22,7 @@ function sample() {
   recordEnding(m, "keeper");
   m.achievements = ["first_try"];
   m.codexEver = ["phishing", "hashing", "triage"];
+  m.casesEver = ["t1_bakery_phish"];
   m.settings.music = 0.25;
   m.settings.textScale = 1.15;
   m.settings.reducedMotion = true;

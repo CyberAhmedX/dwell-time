@@ -1047,3 +1047,12 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 }
 .pv-link:hover { text-decoration: underline; }
 .pv-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+
+/* ---------- 2.0: hard mode, practice, share card ---------- */
+.check-row { display: flex; gap: 10px; align-items: flex-start; font-size: calc(13.5px * var(--ts)); color: var(--fg-dim); cursor: pointer; text-align: left; }
+.check-row input { margin-top: 3px; accent-color: var(--teal); width: 16px; height: 16px; flex: none; }
+.check-row b { color: var(--amber-soft); font-weight: 600; }
+.tb-mode { font-family: var(--mono); font-size: calc(11px * var(--ts)); color: var(--rose); white-space: nowrap; }
+.ws-practice { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: calc(13px * var(--ts)); color: var(--teal); }
+.practice-chapter { margin: 10px 0 2px; font-family: var(--display); font-size: calc(11px * var(--ts)); letter-spacing: 1px; color: var(--teal); }
+.share-img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--edge); display: block; margin-bottom: 12px; }

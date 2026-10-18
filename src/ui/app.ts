@@ -1,4 +1,4 @@
-import type { Chapter, Dept, Evidence, Scene, SceneChoice, Ticket, Question } from "../engine/types";
+import type { Chapter, Dept, Evidence, Scene, SceneChoice, SingleQuestion, Ticket, Question } from "../engine/types";
 import { DEPTS, DEPT_LABEL } from "../engine/types";
 import {
   type SaveData,
@@ -40,6 +40,7 @@ import {
   freshMeta,
   recordEnding,
   recordCodex,
+  recordCases,
   recordCheckpoint,
   checkpointCopy,
   canSelectChapter,
@@ -57,6 +58,7 @@ import { CHAPTERS, chapterPlan } from "../content/chapters";
 import { CODEX } from "../content/codex";
 import { el, mount, clear, shuffled } from "./dom";
 import { renderEvidence } from "./evidence";
+import { drawShareCard, shareFileName } from "./sharecard";
 
 export class App {
   private root: HTMLElement;
@@ -69,6 +71,8 @@ export class App {
   // The title screen opens every visit, so returning players press Continue,
   // and that click is what lets the browser start the audio.
   private started = false;
+  // While a case is practised, this holds the real run; this.s is a scratch copy.
+  private practice: { real: SaveData } | null = null;
 
   constructor(root: HTMLElement, bgCanvas: HTMLCanvasElement) {
     this.root = root;
@@ -83,13 +87,23 @@ export class App {
     mount(this.root, this.topbar, this.stage, this.toasts);
     this.applySettings();
     this.scene.setChapter(this.s.chapter);
+    // thunder follows the flash after a gap: short when the storm is overhead
+    this.scene.onStrike = () => {
+      if (!this.started) return;
+      const near = this.s.chapter >= 5;
+      const delay = near ? 200 + Math.random() * 600 : 900 + Math.random() * 1600;
+      setTimeout(() => audio.thunder(near ? 1 : 0.55 + Math.random() * 0.2), delay);
+    };
     this.scene.start();
     this.render();
   }
 
   private persist(): void {
+    // practice never touches the run or the record
+    if (this.practice) return;
     save(this.s);
     recordCodex(this.meta, this.s.codex);
+    recordCases(this.meta, this.s.done.filter((id) => ticketById(id)));
     for (const a of checkAchievements(this.s, this.meta)) this.showToast(`Achievement: ${a.title}`);
     saveMeta(this.meta);
   }
@@ -126,7 +140,9 @@ export class App {
     const left = el("div", { class: "tb-left" }, [el("span", { class: "tb-logo", text: "Dwell Time" })]);
 
     let mid: HTMLElement;
-    if (this.s.hired) {
+    if (this.practice) {
+      mid = el("div", { class: "tb-rank" }, [el("span", { class: "tb-rankname", text: "Practice" }), el("span", { class: "tb-mode", text: "nothing here touches your run" })]);
+    } else if (this.s.hired) {
       const con = conduct(this.s);
       const sign = this.s.integrity >= 3 ? "good" : this.s.integrity >= 0 ? "mid" : "bad";
       mid = el("div", { class: "tb-rank" }, [
@@ -138,11 +154,12 @@ export class App {
         el("div", { class: "xpbar" }, [el("div", { class: "xpfill", style: `width:${pct}%` })]),
         el("span", { class: "tb-xp", text: prog.max ? "max rank" : `${this.s.xp} XP` }),
       ]);
+      if (this.s.hard) mid.append(el("span", { class: "tb-mode", text: "Hard mode" }));
     } else {
       mid = el("div", { class: "tb-rank" }, [el("span", { class: "tb-rankname", text: "Applicant" })]);
     }
     const btns = el("div", { class: "tb-right" }, [
-      this.s.hired ? this.iconBtn("Field Notes", () => this.openCodex()) : el("span"),
+      this.s.hired && !this.practice ? this.iconBtn("Field Notes", () => this.openCodex()) : el("span"),
       this.iconBtn("Settings", () => this.openSettings()),
       this.iconBtn(audio.isMuted ? "Sound off" : "Sound on", () => {
         this.meta.settings.muted = !audio.isMuted;
@@ -201,6 +218,12 @@ export class App {
       value: this.s.playerName,
     }) as HTMLInputElement;
 
+    const hardBox = el("input", { type: "checkbox", id: "hard-mode" }) as HTMLInputElement;
+    const hardRow = el("label", { class: "check-row", for: "hard-mode" }, [
+      hardBox,
+      el("span", {}, [el("b", { text: "Hard mode. " }), el("span", { text: "No hints, and one attempt at every case. A wrong answer and the case is botched." })]),
+    ]);
+
     const start = el("button", {
       class: resumeAvailable ? "btn ghost" : "btn primary",
       type: "button",
@@ -217,6 +240,7 @@ export class App {
       const name = nameInput.value.trim() || "Alex";
       this.s = freshSave();
       this.s.playerName = name;
+      this.s.hard = hardBox.checked;
       audio.click();
       this.persist();
       this.render();
@@ -236,9 +260,9 @@ export class App {
         audio.click();
         this.render();
       });
-      card.append(cont, el("label", { class: "field-label", for: "player-name", text: "Or sign a new application" }), nameInput, start);
+      card.append(cont, el("label", { class: "field-label", for: "player-name", text: "Or sign a new application" }), nameInput, hardRow, start);
     } else {
-      card.append(el("label", { class: "field-label", for: "player-name", text: "Sign your application" }), nameInput, start);
+      card.append(el("label", { class: "field-label", for: "player-name", text: "Sign your application" }), nameInput, hardRow, start);
     }
 
     // Once you have finished a run, you can look back at it and replay a chapter.
@@ -250,6 +274,14 @@ export class App {
         this.openChapterSelect();
       });
       extras.append(pick);
+    }
+    if (this.meta.casesEver.length > 0) {
+      const practise = el("button", { class: "btn ghost small", type: "button", text: "Practice a case" });
+      practise.addEventListener("click", () => {
+        audio.click();
+        this.openPractice();
+      });
+      extras.append(practise);
     }
     if (this.meta.endings.length > 0 || this.meta.achievements.length > 0) {
       const rec = el("button", { class: "btn ghost small", type: "button", text: "Endings and achievements" });
@@ -310,15 +342,17 @@ export class App {
       this.render();
       return;
     }
-    // intro dialogue, then questions one at a time, then verdict
+    // intro dialogue, then questions one at a time, then verdict. Each sitting
+    // draws its own questions from the pool, so a retry is a new interview.
+    const asked = shuffled(iv.questions).slice(0, iv.asks);
     this.playDialogue(iv.intro.map((t) => ({ who: iv.interviewer, text: t })), undefined, () => {
-      this.runInterviewQuestions(0, 0);
+      this.runInterviewQuestions(asked, 0, 0);
     });
   }
 
-  private runInterviewQuestions(i: number, correct: number): void {
+  private runInterviewQuestions(asked: SingleQuestion[], i: number, correct: number): void {
     const iv = interviewFor(this.s.track as Dept)!;
-    if (i >= iv.questions.length) {
+    if (i >= asked.length) {
       this.s.interviewScore = correct;
       const hired = correct >= iv.passLine;
       const lines = (hired ? iv.hiredText : iv.rejectedText).map((t) => ({ who: iv.interviewer, text: t }));
@@ -342,12 +376,12 @@ export class App {
       });
       return;
     }
-    const q = iv.questions[i];
+    const q = asked[i];
     const head = el("div", { class: "iv-head" }, [
       this.portrait(iv.interviewer, 72),
       el("div", {}, [
         el("div", { class: "iv-who", text: charName(iv.interviewer) }),
-        el("div", { class: "iv-count", text: `Question ${i + 1} of ${iv.questions.length}` }),
+        el("div", { class: "iv-count", text: `Question ${i + 1} of ${asked.length}` }),
       ]),
     ]);
     const prompt = el("p", { class: "q-prompt", text: q.prompt });
@@ -371,10 +405,10 @@ export class App {
         const explain = el("div", { class: right ? "explain good" : "explain bad" }, [
           el("p", { text: right ? q.explainRight : q.explainWrong }),
         ]);
-        const next = el("button", { class: "btn primary small", type: "button", text: i + 1 < iv.questions.length ? "Next question" : "See the verdict" });
+        const next = el("button", { class: "btn primary small", type: "button", text: i + 1 < asked.length ? "Next question" : "See the verdict" });
         next.addEventListener("click", () => {
           audio.click();
-          this.runInterviewQuestions(i + 1, correct + (right ? 1 : 0));
+          this.runInterviewQuestions(asked, i + 1, correct + (right ? 1 : 0));
         });
         explain.append(next);
         card.append(explain);
@@ -513,14 +547,29 @@ export class App {
     const feedback = el("div", { class: "ws-feedback" });
 
     // Critical cases bite: a limited number of tries, then the case is botched
-    // and closes badly rather than letting you retry forever.
-    const critical = t.severity === "critical";
-    const maxAttempts = critical ? 2 : Infinity;
+    // and closes badly rather than letting you retry forever. Hard mode treats
+    // every case that way, with a single try.
+    const hard = this.s.hard;
+    const critical = t.severity === "critical" || hard;
+    const maxAttempts = hard ? 1 : critical ? 2 : Infinity;
     let wrong = 0;
 
+    if (this.practice) {
+      const leave = el("button", { class: "btn ghost small", type: "button", text: "Leave practice" });
+      leave.addEventListener("click", () => {
+        audio.click();
+        this.leavePractice();
+      });
+      head.append(el("div", { class: "ws-practice" }, [el("span", { text: "Practice. Nothing here touches your run." }), leave]));
+    }
     if (critical && !review) {
       feedback.append(
-        el("p", { class: "warn-crit", text: `Critical case. You have ${maxAttempts} attempts before it goes down as botched.` }),
+        el("p", {
+          class: "warn-crit",
+          text: hard
+            ? "Hard mode. One attempt: a wrong answer and the case goes down as botched."
+            : `Critical case. You have ${maxAttempts} attempts before it goes down as botched.`,
+        }),
       );
     }
 
@@ -606,6 +655,12 @@ export class App {
   }
 
   private completeTicket(t: Ticket, grade: { wrongAttempts: number; botched: boolean; hints: number }): void {
+    if (this.practice) {
+      const how = grade.botched ? "Out of attempts. Try it again any time." : grade.wrongAttempts === 0 ? "Solved clean, first try." : `Solved after ${grade.wrongAttempts} wrong submit${grade.wrongAttempts === 1 ? "" : "s"}.`;
+      const lines = grade.botched ? [{ who: "narration", text: how }] : [...t.closingRight.map((text) => ({ who: speakerFor(t), text })), { who: "narration", text: `Practice: ${how}` }];
+      this.playDialogue(lines, undefined, () => this.leavePractice());
+      return;
+    }
     const beforeRank = rankIndex(this.s);
     const firstTime = !isDone(this.s, t.id);
 
@@ -663,7 +718,7 @@ export class App {
   private buildQuestion(q: Question, panel: HTMLElement, ctx: QuestionContext): QuestionControl {
     const wrap = el("div", { class: "q-block" });
     wrap.append(el("p", { class: "q-prompt", text: q.prompt }));
-    if (q.type !== "decision" && q.hint && !ctx.review) wrap.append(this.hintBox(q.hint, hintFlag(q)));
+    if (q.type !== "decision" && q.hint && !ctx.review && !this.s.hard) wrap.append(this.hintBox(q.hint, hintFlag(q)));
     panel.append(wrap);
 
     if (q.type === "spot") return this.spotQuestion(q, wrap, ctx);
@@ -1241,16 +1296,24 @@ export class App {
           stat("Case accuracy", `${acc}%`),
           stat("Botched", String(this.s.botched)),
           stat("Interviews failed", String(this.s.interviewFails)),
+          ...(this.s.hard ? [stat("Mode", "Hard")] : []),
         ]),
       ]);
       const again = el("button", { class: "btn primary", type: "button", text: "Play again" });
       again.addEventListener("click", () => {
         audio.click();
         const keepName = this.s.playerName;
+        const keepHard = this.s.hard;
         this.s = freshSave();
         this.s.playerName = keepName;
+        this.s.hard = keepHard;
         this.persist();
         this.render();
+      });
+      const share = el("button", { class: "btn ghost small", type: "button", text: "Share card" });
+      share.addEventListener("click", () => {
+        audio.click();
+        void this.openShareCard(ending);
       });
       const record = el("button", { class: "btn ghost small", type: "button", text: "Endings and achievements" });
       record.addEventListener("click", () => {
@@ -1265,10 +1328,103 @@ export class App {
           text: seen >= total ? "You have seen every ending." : `You have seen ${seen} of ${total} endings. Replay a chapter from the title screen to find the others.`,
         }),
       ]);
-      card.append(again, record, endings);
+      card.append(again, share, record, endings);
       this.stage.className = "stage center";
       mount(this.stage, card);
     });
+  }
+
+  // ----------------------------------------------------------------- share card
+  private async openShareCard(ending: ReturnType<typeof resolveEnding>): Promise<void> {
+    const canvas = await drawShareCard({
+      ending,
+      playerName: this.s.playerName,
+      team: this.s.track ? DEPT_LABEL[this.s.track] : "",
+      conduct: conduct(this.s).tier,
+      accuracy: Math.round(accuracy(this.s) * 100),
+      hard: this.s.hard,
+      extra: this.shareExtra(),
+    });
+    const img = el("img", { class: "share-img", alt: `Share card: ${ending.title}, ${ending.rankTitle}` }) as HTMLImageElement;
+    img.src = canvas.toDataURL("image/png");
+    const status = el("p", { class: "transfer-status", role: "status" });
+    const download = el("button", { class: "btn primary", type: "button", text: "Download image" });
+    download.addEventListener("click", () => {
+      audio.click();
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = el("a", { href: url, download: shareFileName(ending, this.s.playerName) });
+        document.body.append(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        status.textContent = "Saved to your downloads.";
+      }, "image/png");
+    });
+    this.overlay("Share your ending", [img, el("div", { class: "btn-row" }, [download]), status]);
+  }
+
+  /** A line for the share card beyond the basics. */
+  private shareExtra(): string {
+    return this.s.cleanCloses === this.s.totalCloses && this.s.totalCloses > 0 ? "Every case closed clean" : `${this.s.cleanCloses} of ${this.s.totalCloses} cases closed clean`;
+  }
+
+  // ----------------------------------------------------------------- practice
+  private openPractice(): void {
+    const list = el("div", { class: "codex-list" });
+    const { close } = this.overlay("Practice a case", [
+      el("p", { class: "muted", text: "Work any case you have closed before, as many times as you like. Hints are free here, and nothing you do touches your run, your record or your achievements." }),
+      list,
+    ]);
+    for (const plan of CHAPTERS) {
+      const cases = [...plan.main, ...plan.side].filter((id) => this.meta.casesEver.includes(id)).map(ticketById).filter((t): t is Ticket => !!t);
+      if (!cases.length) continue;
+      list.append(el("p", { class: "practice-chapter", text: `${plan.title}: ${plan.subtitle}` }));
+      for (const t of cases) {
+        const b = el("button", { class: "btn choice", type: "button" }, [
+          el("span", { class: "cs-title", text: t.title }),
+          el("span", { class: "cs-note", text: `${t.client} · ${t.team ?? DEPT_LABEL[t.dept]}${t.side ? " · side case" : ""}` }),
+        ]);
+        b.addEventListener("click", () => {
+          audio.click();
+          close();
+          this.startPractice(t);
+        });
+        list.append(b);
+      }
+    }
+  }
+
+  private startPractice(t: Ticket): void {
+    if (!this.started) this.startSession();
+    const real = this.practice?.real ?? this.s;
+    // A scratch run that can see the case: hired onto its team, in its chapter,
+    // with every flag the real run has, and without hard mode or bought hints.
+    const scratch = freshSave();
+    scratch.playerName = real.playerName || "Analyst";
+    scratch.hired = true;
+    scratch.track = t.dept;
+    scratch.chapter = t.chapter;
+    scratch.flags = real.flags.filter((f) => !f.startsWith("hint:"));
+    this.practice = { real };
+    this.s = scratch;
+    this.scene.setChapter(t.chapter);
+    audio.setChapter(t.chapter);
+    this.renderTopbar();
+    this.openTicket(t, false);
+  }
+
+  // Practice starts and ends on the title screen, whatever state the run is in.
+  private leavePractice(): void {
+    if (!this.practice) return;
+    this.s = this.practice.real;
+    this.practice = null;
+    audio.setChapter(this.s.chapter);
+    this.renderTopbar();
+    this.scene.setChapter(this.s.chapter);
+    this.screenTitle();
+    this.openPractice();
   }
 
   // ----------------------------------------------------------------- overlays

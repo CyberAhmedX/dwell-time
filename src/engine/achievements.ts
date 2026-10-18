@@ -61,6 +61,12 @@ export const ACHIEVEMENTS: Achievement[] = [
     earned: (s) => finished(s) && s.hintsUsed === 0,
   },
   {
+    id: "hard_way",
+    title: "The Hard Way",
+    desc: "Finish a run in hard mode: no hints, one attempt at every case.",
+    earned: (s) => finished(s) && s.hard,
+  },
+  {
     id: "side_work",
     title: "Side Work",
     desc: "Close every side case in a single run.",
