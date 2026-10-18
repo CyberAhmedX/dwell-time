@@ -46,7 +46,7 @@ export const SCENES: Scene[] = [
     chapter: 3,
     lines: [
       { who: "narration", text: "Rain at last, hard against the windows. The office is lamplight and shadow now, the cozy kind, if you ignore what you are about to read." },
-      { who: "imani", text: "Forensics today. Slower work. We do not guess here, we prove. And we are very, very careful about one small word: who." },
+      { who: "imani", text: "The clinic sent us a laptop. We all handle it right, together, and then each of us checks what it means in our own way. And we are very, very careful about one small word: who." },
     ],
   },
 
@@ -98,7 +98,8 @@ export const SCENES: Scene[] = [
     chapter: 4,
     lines: [
       { who: "narration", text: "A full gale now. Lightning throws the office white, then dark. Everyone is working late and nobody is saying why." },
-      { who: "rook", text: "Pentest and intel today. The two jobs people most want to do carelessly. We are going to do them carefully instead." },
+      { who: "juno", text: "The crew calling themselves the Tollkeepers just moved on the water plant. Ransomware, loud and fast. That is not the quiet visitor who has been collecting proof. That is something else, and it is circling." },
+      { who: "rook", text: "And tonight, in your own corner of this, someone is going to ask you to bend one rule, just once, for a good reason. That is the real test. Do not." },
     ],
   },
 
@@ -110,7 +111,7 @@ export const SCENES: Scene[] = [
     lines: [
       { who: "narration", text: "Walter asks you to stay after the others leave. He pours two coffees and does not drink his." },
       { who: "walter", text: "You are good. Better than good, this fast. So let me be straight with you, the way I wish someone had been with me." },
-      { who: "walter", text: "St. Brennan's, five years ago, that was my mistake. The password, the alerts, the analyst I let go. I have carried it every day since. But if it comes out now, Lanternhouse is finished, and this whole town loses the people who protect it." },
+      { who: "walter", text: "St. Brennan's, five years ago, that was my mistake. The password, the alerts, the analyst I let go, Nadia Sorel. I have carried it every day since. But if it comes out now, Lanternhouse is finished, and this whole town loses the people who protect it." },
       { who: "walter", text: "I am making you Senior Analyst. Real money, real authority. All I ask is that the clinic stays in the past, where it belongs. Can you give me that?" },
     ],
     choice: {
@@ -144,6 +145,7 @@ export const SCENES: Scene[] = [
     lines: [
       { who: "narration", text: "The storm takes the grid at 21:40. Emergency lights snap on, everything washed in red. The lighthouse keeps turning on its own generator, patient as ever." },
       { who: "narration", text: "Then the alert from Halden Water and Light. Someone is inside, moving toward the one network that must never be touched: the controls that keep the town's water safe." },
+      { who: "narration", text: "This is not the quiet visitor who has been gathering proof. This is the Tollkeepers, the ransomware crew, moving fast with the one shared password that still works." },
       { who: "mags", text: "This is it. This is the one all the quiet weeks were practice for. Read the situation first. Then we decide together." },
     ],
   },
@@ -162,7 +164,7 @@ export const SCENES: Scene[] = [
           // and read the recon properly. Leave a door open or botch the recon
           // and this option is gone.
           text: "Cut it at the root: disable the HarborWatch shared credential everywhere and isolate the jump box from the OT boundary.",
-          hideIf: ["left_firewall_open", "botched_t5_plant_recon"],
+          hideIf: ["left_firewall_open", "botched_t5_plant_recon", "botched_t5_network", "botched_t5_helpdesk", "botched_t5_forensics", "botched_t5_pentest", "botched_t5_intel"],
           setFlags: [FINALE_SUCCESS],
           integrity: 2,
           reply: [

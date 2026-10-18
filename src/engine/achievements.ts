@@ -4,6 +4,7 @@ import { hasFlag, rankIndex, RANK_TITLES } from "./state";
 import { ENDINGS, F } from "./endings";
 import { CODEX } from "../content/codex";
 import { CHAPTERS } from "../content/chapters";
+import { SECRETS } from "../content/secrets";
 
 // Achievements only come from how you actually played. None of them can be
 // bought, ground out, or earned by doing something and undoing it.
@@ -77,6 +78,12 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: "Well Read",
     desc: "Unlock every Field Note. Some only come from one team's own case.",
     earned: (_s, m) => CODEX.every((c) => m.codexEver.includes(c.id)),
+  },
+  {
+    id: "six_sides",
+    title: "Six Sides of the Story",
+    desc: "Find every team's secret, across as many runs as it takes.",
+    earned: (_s, m) => SECRETS.every((x) => m.secretsEver.includes(x.flag)),
   },
   {
     id: "every_ending",

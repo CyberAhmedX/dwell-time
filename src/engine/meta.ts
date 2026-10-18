@@ -20,6 +20,7 @@ export interface MetaData {
   achievements: string[];
   codexEver: string[];
   casesEver: string[]; // every case you have ever closed, for practice mode
+  secretsEver: string[]; // every team secret you have ever found
   checkpoints: Partial<Record<number, SaveData>>; // chapter -> save at its start
   settings: Settings;
 }
@@ -35,6 +36,7 @@ export function freshMeta(): MetaData {
     achievements: [],
     codexEver: [],
     casesEver: [],
+    secretsEver: [],
     checkpoints: {},
     settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false },
   };
@@ -81,6 +83,11 @@ export function recordEnding(meta: MetaData, id: string): boolean {
 
 export function recordCodex(meta: MetaData, ids: readonly string[]): void {
   for (const id of ids) addOnce(meta.codexEver, id);
+}
+
+/** Remember team secrets found in any run, for Case Files and Six Sides. */
+export function recordSecrets(meta: MetaData, flags: readonly string[]): void {
+  for (const f of flags) if (f.startsWith("secret_")) addOnce(meta.secretsEver, f);
 }
 
 /** Remember closed cases, so they can be practised from the title screen. */

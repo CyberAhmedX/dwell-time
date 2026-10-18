@@ -1,5 +1,8 @@
 import type { Ticket } from "../engine/types";
 import { TRACK_TICKETS } from "./tracks";
+import { TEAM_TICKETS } from "./teamcases";
+import { FINALE_TICKETS } from "./finales";
+import { TEMPT_TICKETS } from "./teamcases4";
 import { SIDE_TICKETS } from "./sides";
 import { schoolDnsLog } from "./logs";
 import { ATTACK_CATALOGUE } from "./attack";
@@ -551,7 +554,7 @@ const STORY_TICKETS: Ticket[] = [
       { id: "T1078", name: "Valid Accounts" },
       { id: "T1136", name: "Create Account" },
     ],
-    requires: ["clinic_examined"],
+    requires: ["clinic_examined", "track_forensics"],
     brief: [
       "Dr. Vance spreads the findings across two monitors.",
       "Now we read what the copy tells us, in order. Sequence is everything. Let us see who did what, and when, and be very careful about that first word. Who.",
@@ -699,7 +702,8 @@ const STORY_TICKETS: Ticket[] = [
     severity: "medium",
     client: "Port Halden Harbor Authority",
     title: "Authorized test, with a hard line",
-    xp: 90,
+    xp: 100,
+    requires: ["track_pentest"],
     attack: [
       { id: "T1190", name: "Exploit Public-Facing Application" },
     ],
@@ -849,12 +853,12 @@ const STORY_TICKETS: Ticket[] = [
     severity: "high",
     client: "Lanternhouse (internal)",
     title: "Connecting the threads",
-    xp: 90,
+    xp: 100,
     attack: [
       { id: "T1078", name: "Valid Accounts" },
       { id: "T1219", name: "Remote Access Tools" },
     ],
-    requires: ["knows_truth"],
+    requires: ["knows_truth", "track_intel"],
     brief: [
       "Juno has cleared a whole wall. String everywhere.",
       "Okay. Brightloaf, the school, the clinic. I think they are one story, not three. Help me lay it out, and help me not get ahead of the evidence. That is the hard part when the picture starts to look like a face.",
@@ -949,6 +953,24 @@ const STORY_TICKETS: Ticket[] = [
         teaches: "attribution",
         hint: "Write only what the evidence supports today, not what it might show next week.",
       },
+      {
+        type: "decision",
+        id: "q_intel_hackback",
+        prompt: "A contact messages Juno's channel: they can hand you the login to the Tollkeepers' own server, so you can delete the stolen data before it is published. Juno looks at you. What do you say?",
+        options: [
+          {
+            text: "Decline. Breaking into their server is a crime too, whoever they are. Track it and feed the block list instead.",
+            integrity: 2,
+            result: "Juno exhales. 'Right. We do not become them to stop them.' You keep mapping the infrastructure, cleanly, the way it holds up later.",
+          },
+          {
+            text: "Take the login and wipe the data. They stole it first, and it would protect the victims.",
+            setFlags: ["crossed_line"],
+            integrity: -2,
+            result: "You reach into a server that is not yours. Maybe the data dies. But you have tipped them off that someone is inside, they move faster, and you have done the exact thing you investigate others for. The finale will give you less room for it.",
+          },
+        ],
+      },
     ],
     closingRight: [
       "Juno steps back from the wall.",
@@ -965,8 +987,9 @@ const STORY_TICKETS: Ticket[] = [
     severity: "critical",
     client: "Halden Water & Light",
     title: "Something is in the plant network",
-    xp: 100,
+    xp: 120,
     live: { seconds: 300 },
+    requires: ["track_soc"],
     attack: [
       { id: "T1078", name: "Valid Accounts" },
       { id: "T1021.002", name: "SMB/Windows Admin Shares" },
@@ -1124,7 +1147,7 @@ const STORY_TICKETS: Ticket[] = [
 
 // Every case in the game: the shared story, one case per career track, and the
 // optional side cases.
-export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...SIDE_TICKETS];
+export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...TEAM_TICKETS, ...TEMPT_TICKETS, ...FINALE_TICKETS, ...SIDE_TICKETS];
 
 export function ticketById(id: string): Ticket | undefined {
   return TICKETS.find((t) => t.id === id);

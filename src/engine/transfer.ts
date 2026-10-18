@@ -112,6 +112,7 @@ function cleanMeta(x: unknown): MetaData {
   m.achievements = ids(x.achievements);
   m.codexEver = ids(x.codexEver);
   m.casesEver = ids(x.casesEver);
+  m.secretsEver = ids(x.secretsEver);
   if (isObj(x.checkpoints)) {
     for (const [k, v] of Object.entries(x.checkpoints)) {
       const ch = Number(k);

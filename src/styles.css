@@ -15,8 +15,8 @@
   --edge: #2b3647;
   --edge-warm: #4a3f34;
   --fg: #eaf1f8;
-  --fg-dim: #aab6c6;
-  --muted: #7d8aa0;
+  --fg-dim: #c4cedb;
+  --muted: #a0acbf;
   --amber: #e4a94a;
   --amber-soft: #f0c884;
   --teal: #46c6b8;
@@ -38,6 +38,8 @@
 }
 
 * { box-sizing: border-box; }
+/* form controls do not inherit the page font on their own */
+button, input, select, textarea { font-family: inherit; }
 
 html, body { height: 100%; }
 body {
@@ -345,7 +347,8 @@ body {
 .ticket-card.sev-medium { border-left-color: var(--sev-medium); }
 .ticket-card.sev-high { border-left-color: var(--sev-high); }
 .ticket-card.sev-critical { border-left-color: var(--sev-critical); }
-.ticket-card.done { opacity: 0.6; }
+.ticket-card.done { filter: saturate(0.55); }
+.ticket-card.done .tk-title { color: var(--fg-dim); }
 .ticket-card.side { border-style: dashed; }
 .tk-top { display: flex; align-items: center; gap: 8px; font-size: calc(11px * var(--ts)); }
 .tk-sev { font-family: var(--mono); font-weight: 500; color: var(--sev-medium); }
@@ -359,6 +362,7 @@ body {
 .tk-title { font-weight: 600; font-size: calc(15.5px * var(--ts)); }
 .tk-client { font-size: calc(13px * var(--ts)); color: var(--fg-dim); }
 .desk-footer { max-width: 900px; margin: 22px auto 0; display: flex; justify-content: center; }
+.desk-footer .muted { color: var(--fg-dim); background: rgba(8, 12, 20, 0.82); padding: 6px 14px; border-radius: 8px; margin: 0; }
 .muted { color: var(--muted); font-size: calc(13.5px * var(--ts)); }
 
 /* ------------------------------------------------------------------ workstation */
@@ -385,7 +389,7 @@ body {
   align-items: start;
 }
 .ws-col { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.col-label { font-family: var(--display); font-size: calc(11px * var(--ts)); letter-spacing: 1px; color: var(--teal); text-transform: uppercase; }
+.col-label { font-family: var(--display); font-size: calc(11px * var(--ts)); letter-spacing: 1px; color: var(--teal); text-transform: uppercase; align-self: flex-start; background: rgba(8, 12, 20, 0.82); padding: 4px 9px; border-radius: 6px; }
 .ev-panel { display: flex; flex-direction: column; gap: 12px; }
 .q-panel { display: flex; flex-direction: column; gap: 18px; }
 .q-block { background: var(--panel); border: 1px solid var(--edge); border-radius: var(--radius); padding: 16px; backdrop-filter: blur(8px); }
@@ -481,14 +485,14 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 .vn-speaker .portrait { width: 56px; height: 56px; }
 .vn-name { font-family: var(--display); font-size: calc(15px * var(--ts)); }
 .vn-text { font-size: calc(17px * var(--ts)); line-height: 1.6; margin: 0; }
-.vn-hint { margin-top: 12px; font-size: calc(11px * var(--ts)); color: var(--muted); text-align: right; letter-spacing: 1px; text-transform: uppercase; animation: blink 1.4s ease-in-out infinite; }
+.vn-hint { margin-top: 12px; font-size: calc(11px * var(--ts)); color: var(--fg-dim); text-align: right; letter-spacing: 1px; text-transform: uppercase; animation: blink 1.4s ease-in-out infinite; }
 .vn-choice { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
 .vn-choice-prompt { font-size: calc(15px * var(--ts)); color: var(--amber-soft); margin: 0 0 4px; }
 .btn.choice { text-align: left; background: var(--panel-soft); border-color: var(--edge-warm); }
 .btn.choice:hover { border-color: var(--amber); background: rgba(228, 169, 74, 0.1); }
 
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@keyframes blink { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes blink { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 
 /* ------------------------------------------------------------------ ending */
 .ending-card {
@@ -1116,3 +1120,6 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 .q-secret { border-style: dashed; border-color: var(--edge-warm); }
 .secret-tag { font-family: var(--display); font-size: calc(9px * var(--ts)); letter-spacing: 1px; color: var(--amber); margin: 0 0 8px; }
 .takeaways { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* placeholders are hints, so they must be readable too */
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
