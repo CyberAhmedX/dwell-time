@@ -43,7 +43,7 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 
 ## What makes it tick
 
-- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Each draws five questions from a larger pool, so a retry is a fresh interview. Pass one to get hired, and your team gives you a case of its own in chapter two. The rest of the story is shared.
+- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Each draws five questions from a larger pool, so a retry is a fresh interview. Pass one to get hired, and your team shapes the whole run: its own cases through the story, its own hard choice, its own part in the live finale, and a secret only your team can find.
 - **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant.
 - **A side case in every chapter**, from a cat on the keyboard to a backup audit, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **A real terminal**: dig through case files with `grep`, `cut`, `sort | uniq -c`, `sha256sum` and pipes, then type what you found. Any command that finds it counts.
@@ -69,6 +69,7 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
 - **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood. Download a share card of how your run ended.
 - **Hard mode and practice mode**: take every case with no hints and one attempt, or replay any case you have closed without touching your run.
+- **Case Files**: every team has its own secret to uncover. Find all six across your runs for the Six Sides of the Story achievement.
 - **Achievements** for how you played, like keeping the evidence chain intact, finishing on hard mode, or closing every case right on the first try.
 - **Settings** for music and effects volume, text size, reduced motion, and relaxed timers.
 - **Export and import saves** as a file or a short code, to back up a run or carry it to another browser or device.
