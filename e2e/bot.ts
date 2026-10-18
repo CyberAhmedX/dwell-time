@@ -163,6 +163,13 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       }
       await block.locator(".typed-input").fill(q.answer[0]);
       return;
+    case "rules": {
+      const fw = page.locator(`[data-ev="${q.evidence}"]`);
+      await fw.locator(".fw-rules").fill(q.solution);
+      await fw.getByRole("button", { name: "Replay traffic" }).click();
+      await expect(fw.locator(".fw-status")).toHaveClass(/good/);
+      return;
+    }
     case "spot":
       await block.locator(".spot-btn").click();
       await page.locator(`[data-ev="${q.evidence}"] [data-pick="${q.answer[0]}"]`).click();

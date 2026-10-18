@@ -24,6 +24,7 @@ import {
 } from "../engine/state";
 import { pickTargets } from "../engine/pick";
 import { answerMatches } from "../engine/answer";
+import { rulesPass, replay, RuleError } from "../engine/firewall";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
 import {
   type MetaData,
@@ -499,7 +500,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -576,6 +577,7 @@ export class App {
       const ran = [
         used.terminal ? `${used.terminal} command${used.terminal === 1 ? "" : "s"}` : "",
         used.siem ? `${used.siem} search${used.siem === 1 ? "" : "es"}` : "",
+        used.firewall ? `${used.firewall} replay${used.firewall === 1 ? "" : "s"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
@@ -657,6 +659,7 @@ export class App {
 
     if (q.type === "spot") return this.spotQuestion(q, wrap, ctx);
     if (q.type === "typed") return this.typedQuestion(q, wrap);
+    if (q.type === "rules") return this.rulesQuestion(q, wrap, ctx);
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -837,6 +840,49 @@ export class App {
     });
     box.append(b);
     return box;
+  }
+
+  private rulesQuestion(q: Extract<Question, { type: "rules" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
+    const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence);
+    if (ev?.kind !== "firewall") throw new Error(`${q.id}: ${q.evidence} is not a firewall`);
+    const view = ctx.evPanel.querySelector<HTMLElement>(`[data-ev="${q.evidence}"]`)!;
+    const editor = view.querySelector<HTMLTextAreaElement>(".fw-rules")!;
+    const progress = el("p", { class: "rules-progress", text: `Edit the rules in "${ev.label}", then replay the traffic to check them.` });
+    const expl = el("div", { class: "explain", hidden: true });
+    wrap.append(progress, expl);
+
+    // keep a running score here too, so the answer column says where you stand
+    view.addEventListener("tool-command", () => {
+      try {
+        const v = replay(editor.value, ev.flows, ev.zones);
+        progress.textContent = `Last replay: ${v.filter((x) => x.ok).length} of ${ev.flows.length} flows right.`;
+      } catch (e) {
+        if (!(e instanceof RuleError)) throw e;
+        progress.textContent = "Last replay: the rules have an error.";
+      }
+    });
+    const isRight = (): boolean => rulesPass(editor.value, ev.flows, ev.zones);
+    return {
+      ready: () => true,
+      correct: isRight,
+      reveal: () => {
+        editor.readOnly = true;
+        expl.hidden = false;
+        expl.className = isRight() ? "explain good" : "explain bad";
+        mount(
+          expl,
+          el("p", { text: isRight() ? q.explainRight : q.explainWrong }),
+          el("p", { class: "typed-way", text: "One rule set that works:" }),
+          el("pre", { class: "rules-solution", text: q.solution }),
+        );
+      },
+      mark: () => markBlock(wrap, isRight()),
+      apply: () => {},
+      focus: () => {
+        view.scrollIntoView({ behavior: scrollMotion(), block: "start" });
+        editor.focus({ preventScroll: true });
+      },
+    };
   }
 
   private typedQuestion(q: Extract<Question, { type: "typed" }>, wrap: HTMLElement): QuestionControl {

@@ -859,3 +859,39 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 .siem-status { margin: 0; font-size: calc(12.5px * var(--ts)); color: var(--fg-dim); font-family: var(--mono); }
 .siem-status.err { color: var(--rose); }
 .siem-results .log-scroll { max-height: 340px; }
+
+/* Firewall editor */
+.fw { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; }
+.fw-help { margin: 0; font-size: calc(13px * var(--ts)); color: var(--fg-dim); }
+.fw-zones { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-family: var(--mono); font-size: calc(12px * var(--ts)); }
+.fw-zones dt { color: var(--teal); }
+.fw-zones dd { margin: 0; color: var(--fg-dim); word-break: break-word; }
+.fw-rules {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: max(16px, calc(13px * var(--ts)));
+  line-height: 1.5;
+  color: #cfe3d8;
+  background: #05080d;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  white-space: pre;
+  overflow-x: auto;
+}
+.fw-rules:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.fw-rules[readonly] { opacity: 0.8; }
+.fw-status { margin: 0; font-family: var(--mono); font-size: calc(12.5px * var(--ts)); color: var(--amber-soft); }
+.fw-status.good { color: var(--good); }
+.fw-status.err { color: var(--rose); }
+.fw-table .fw-act { font-family: var(--display); font-size: calc(10px * var(--ts)); letter-spacing: 1px; }
+.fw-table td { white-space: normal; vertical-align: top; }
+.fw-table .fw-act, .fw-table .fw-verdict { white-space: nowrap; }
+.fw-table tr.fw-ok .fw-verdict { color: var(--good); }
+.fw-table tr.fw-bad td { background: rgba(224, 98, 119, 0.08); }
+.fw-table tr.fw-bad .fw-verdict { color: var(--rose); }
+.fw-flow { font-size: calc(11.5px * var(--ts)); color: var(--muted); margin-top: 2px; word-break: break-all; }
+.fw-results .log-scroll { max-height: 360px; }
+.rules-progress { margin: 0; font-size: calc(13.5px * var(--ts)); color: var(--fg-dim); }
+.rules-solution { margin: 6px 0 0; padding: 8px 10px; background: rgba(0, 0, 0, 0.35); border-radius: 6px; font-family: var(--mono); font-size: calc(12px * var(--ts)); white-space: pre-wrap; }
