@@ -6,7 +6,7 @@ import { CHAPTERS } from "../src/content/chapters";
 import { CODEX } from "../src/content/codex";
 import { ENDINGS } from "../src/engine/endings";
 import { pickTargets } from "../src/engine/pick";
-import { runLine } from "../src/engine/shell";
+import { runSolution } from "../src/engine/solution";
 import { answerMatches, normalizeAnswer } from "../src/engine/answer";
 import { DEPTS } from "../src/engine/types";
 import { trackFlag } from "../src/engine/state";
@@ -41,6 +41,8 @@ function allText(): string[] {
           push(name);
           push(text);
         });
+      } else if (ev.kind === "siem") {
+        ev.events.forEach((e) => Object.values(e).forEach(push));
       } else if (ev.kind === "email") {
         push(ev.from);
         push(ev.to);
@@ -361,9 +363,9 @@ describe("terminal cases", () => {
     for (const { t, q } of typed) {
       if (!q.solution) continue;
       const ev = t.evidence.find((e) => e.id === q.solution!.evidence);
-      expect(ev?.kind, `${q.id}: ${q.solution.evidence} is a terminal`).toBe("terminal");
-      if (ev?.kind !== "terminal") continue;
-      const r = runLine(q.solution.command, ev.files);
+      expect(ev?.kind === "terminal" || ev?.kind === "siem", `${q.id}: ${q.solution.evidence} is a terminal or a SIEM`).toBe(true);
+      if (!ev) continue;
+      const r = runSolution(ev, q.solution.command);
       expect(r.error, `${q.id}: ${r.out}`).toBeFalsy();
       expect(normalizeAnswer(r.out), `${q.id}: "${q.solution.command}" printed:\n${r.out}`).toContain(normalizeAnswer(q.answer[0]));
     }

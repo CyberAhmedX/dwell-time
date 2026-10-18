@@ -6,7 +6,7 @@ import { el } from "./dom";
 // on the arrow keys, Tab to complete, and the output of each command under it.
 // A row of keys helps on phones, where | and quotes are buried.
 //
-// Each command run fires a "terminal-command" event, so the case can count them.
+// Each command run fires a "tool-command" event, so the case can count them.
 
 const PROMPT = "analyst@lanternhouse:~/case$";
 const KEYS = ["|", "grep ", "sort ", "uniq -c ", "head ", "wc -l ", "cut -f", "'"];
@@ -62,7 +62,7 @@ export function terminalView(ev: TerminalEvidence): HTMLElement {
     const r = runLine(cmd, ev.files, history);
     if (r.clear) screen.replaceChildren();
     else print(r.out, r.error ? "term-err" : undefined);
-    body.dispatchEvent(new CustomEvent("terminal-command", { bubbles: true, detail: { evidence: ev.id, line: cmd } }));
+    body.dispatchEvent(new CustomEvent("tool-command", { bubbles: true, detail: { kind: "terminal", evidence: ev.id, line: cmd } }));
   };
 
   input.addEventListener("keydown", (e) => {

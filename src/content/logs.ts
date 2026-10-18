@@ -68,3 +68,79 @@ export function schoolDnsLog(): SchoolDns {
   const header = "#fields\ttime\thost\tsrc_ip\tquery\tqtype\trcode";
   return { log: [header, ...rows.map((x) => x.line)].join("\n") + "\n", tunnelDomain, tunnelCount };
 }
+
+// ------------------------------------------------------------------ clinic VPN
+
+const CLINIC_STAFF = [
+  "a.reyes", "b.osei", "c.lindgren", "d.mbeki", "e.novak", "f.tanaka", "g.walsh", "h.ibrahim", "i.kowalski", "j.mensah",
+  "k.duarte", "l.fischer", "m.haddad", "n.oconnor", "o.petrov", "p.sato", "q.adeyemi", "r.silva", "s.nguyen", "t.berg",
+  "u.rahman", "v.costa", "w.yilmaz", "x.moreau", "y.kim", "z.okeke", "ab.jensen", "ac.ferrari", "ad.novak", "ae.chowdhury",
+  "af.lund", "ag.santos", "ah.mwangi", "ai.dubois", "aj.park", "ak.ortiz", "al.weber", "am.hussain", "an.rossi", "ao.byrne",
+];
+// names an attacker guesses that do not exist here
+const GUESSED = ["admin", "administrator", "test", "reception", "billing", "itsupport", "scanner", "backup", "nurse1", "doctor", "manager", "guest"];
+
+export interface ClinicVpn {
+  events: Record<string, string>[];
+  fields: string[];
+  sprayIp: string;
+  sprayAccounts: number;
+  breached: string;
+}
+
+/**
+ * A day of the clinic's VPN sign-ins. Staff connect from home addresses in
+ * town, a night nurse signs in at two, b.osei fumbles a password before work,
+ * and at 03:12 one hosting address tries one password against every account it
+ * can think of. e.novak is still on her first-day password.
+ */
+export function clinicVpnEvents(): ClinicVpn {
+  const r = rng(20260310);
+  const rows: { t: number; e: Record<string, string> }[] = [];
+  const home = (i: number): string => `198.51.100.${10 + (i % 50)}`;
+  const add = (t: number, e: Record<string, string>): void => {
+    rows.push({ t, e: { _time: clock(t), ...e } });
+  };
+
+  // the VPN drops and reconnects through the day, so each person signs in a few times
+  CLINIC_STAFF.forEach((user, i) => {
+    const n = 4 + Math.floor(r() * 7);
+    for (let k = 0; k < n; k++) {
+      const t = 7 * 3600 + Math.floor(r() * 11 * 3600);
+      add(t, { src_ip: home(i), user, action: "success", reason: "", geo: "Port Halden" });
+    }
+  });
+  add(2 * 3600 + 4 * 60 + 11, { src_ip: "198.51.100.31", user: "h.ibrahim", action: "success", reason: "", geo: "Port Halden" });
+  // the red herring: a real person who cannot remember their new password
+  for (const [s, action, reason] of [[7 * 3600 + 58 * 60 + 2, "failure", "bad password"], [7 * 3600 + 58 * 60 + 40, "failure", "bad password"], [7 * 3600 + 59 * 60 + 15, "failure", "bad password"], [7 * 3600 + 59 * 60 + 58, "success", ""]] as const) {
+    add(s, { src_ip: "198.51.100.23", user: "b.osei", action, reason, geo: "Port Halden" });
+  }
+  // a couple more ordinary typos during the day
+  for (const user of ["k.duarte", "s.nguyen"]) {
+    const t = 9 * 3600 + Math.floor(r() * 6 * 3600);
+    const i = CLINIC_STAFF.indexOf(user);
+    add(t, { src_ip: home(i), user, action: "failure", reason: "bad password", geo: "Port Halden" });
+    add(t + 20, { src_ip: home(i), user, action: "success", reason: "", geo: "Port Halden" });
+  }
+
+  // the spray: one try per account, 203.0.113.77
+  const sprayIp = "203.0.113.77";
+  const breached = "e.novak";
+  const targets = [...CLINIC_STAFF, ...GUESSED];
+  let t = 3 * 3600 + 12 * 60 + 1;
+  for (const user of targets) {
+    const known = CLINIC_STAFF.includes(user);
+    const ok = user === breached;
+    add(t, { src_ip: sprayIp, user, action: ok ? "success" : "failure", reason: ok ? "" : known ? "bad password" : "unknown user", geo: "Unknown (hosting provider)" });
+    t += 1 + Math.floor(r() * 3);
+  }
+
+  rows.sort((a, b) => a.t - b.t);
+  return {
+    events: rows.map((x) => x.e),
+    fields: ["src_ip", "user", "action", "reason", "geo"],
+    sprayIp,
+    sprayAccounts: targets.length,
+    breached,
+  };
+}

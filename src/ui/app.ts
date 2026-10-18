@@ -498,9 +498,9 @@ export class App {
 
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
-    // count terminal commands, for the note on how directly you got there
-    let commands = 0;
-    evPanel.addEventListener("terminal-command", () => commands++);
+    // count commands and searches, for the note on how directly you got there
+    const used = { terminal: 0, siem: 0 };
+    evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
     const submit = el("button", { class: "btn primary", type: "button", text: review ? "Back to desk" : "Submit findings" });
@@ -573,9 +573,11 @@ export class App {
           text: botched ? "Out of attempts. Read what each answer should have been, then close the case." : "Solved. Read the notes on each answer, then close the case.",
         }),
       );
-      if (commands > 0) {
-        feedback.append(el("p", { class: "muted", text: `You ran ${commands} command${commands === 1 ? "" : "s"} in the terminal.` }));
-      }
+      const ran = [
+        used.terminal ? `${used.terminal} command${used.terminal === 1 ? "" : "s"}` : "",
+        used.siem ? `${used.siem} search${used.siem === 1 ? "" : "es"}` : "",
+      ].filter(Boolean);
+      if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
       submit.replaceWith(done);
       done.focus();

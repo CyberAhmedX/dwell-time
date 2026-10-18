@@ -100,7 +100,18 @@ export interface TerminalEvidence {
   files: Record<string, string>; // file name -> contents
 }
 
+// A SIEM index you can search. See engine/siem.ts.
+export interface SiemEvidence {
+  kind: "siem";
+  id: string;
+  label: string;
+  index: string; // index name shown in the search bar
+  fields: string[]; // field order for result columns
+  events: Record<string, string>[];
+}
+
 export type Evidence =
+  | SiemEvidence
   | TerminalEvidence
   | EmailEvidence
   | LogEvidence
@@ -187,8 +198,8 @@ export interface TypedQuestion {
   explainWrong: string;
   teaches?: string;
   hint?: string;
-  // one command that finds it, run against a terminal evidence item; shown after
-  // the case closes, and tests check it really does find the answer
+  // one command (terminal) or search (SIEM) that finds it; shown after the case
+  // closes, and tests check it really does find the answer
   solution?: { evidence: string; command: string };
 }
 

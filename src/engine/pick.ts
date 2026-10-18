@@ -11,7 +11,8 @@ export interface PickTarget {
 export function pickTargets(ev: Evidence): PickTarget[] {
   switch (ev.kind) {
     case "terminal":
-      return []; // you type into a terminal, you do not point at it
+    case "siem":
+      return []; // you type into these, you do not point at them
     case "email": {
       const out: PickTarget[] = [
         { key: "h:From", label: `From: ${ev.from}` },
