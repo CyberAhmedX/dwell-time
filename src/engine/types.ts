@@ -2,6 +2,7 @@
 
 import type { Flow as FirewallFlow } from "./firewall";
 import type { ConsoleAction, ConsoleGoal, ConsoleIntruder, ConsoleUser } from "./console";
+import type { TimelineSource } from "./timeline";
 
 export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
 
@@ -133,7 +134,17 @@ export interface ConsoleEvidence {
   intruder?: ConsoleIntruder; // comes back if sessions are revoked before the password is reset
 }
 
+// Several logs on different clocks, merged onto UTC by the player. See engine/timeline.ts.
+export interface MergeEvidence {
+  kind: "merge";
+  id: string;
+  label: string;
+  caption?: string;
+  sources: TimelineSource[];
+}
+
 export type Evidence =
+  | MergeEvidence
   | ConsoleEvidence
   | FirewallEvidence
   | SiemEvidence
@@ -255,7 +266,19 @@ export interface ConsoleQuestion {
   hint?: string;
 }
 
-export type Question = ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Set each source's clock in a merge evidence item so the timeline is true.
+export interface MergeQuestion {
+  type: "merge";
+  id: string;
+  prompt: string;
+  evidence: string; // merge evidence id within the same ticket
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+export type Question = MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {

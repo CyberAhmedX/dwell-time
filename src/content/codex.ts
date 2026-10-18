@@ -191,6 +191,26 @@ export const CODEX: CodexEntry[] = [
     ],
   },
   {
+    id: "file-signatures",
+    term: "File signatures (magic bytes)",
+    dept: "forensics",
+    body: [
+      "A file's name can say anything. Its first few bytes cannot lie so easily: most formats start with a fixed signature.",
+      "Windows programs start with MZ (4d 5a in hex). PDFs start with %PDF. Zip files, and Office documents, which are zips inside, start with PK.",
+      "So when an invoice.pdf begins with MZ, it is a program dressed as a document. A hex viewer like xxd shows you the truth in one line.",
+    ],
+  },
+  {
+    id: "time-zones",
+    term: "Time zones in a timeline",
+    dept: "forensics",
+    body: [
+      "Every log is stamped by its own clock. Firewalls and servers usually log in UTC; desktop PCs often log in local time.",
+      "Before merging logs into one timeline, convert everything to one zone, usually UTC. Then check the clocks were right, too: a PC can drift by minutes.",
+      "The giveaway of a mistake is an effect before its cause, like a program calling home an hour before the stick it came on was plugged in.",
+    ],
+  },
+  {
     id: "attack",
     term: "MITRE ATT&CK",
     dept: "general",

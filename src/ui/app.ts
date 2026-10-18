@@ -27,6 +27,8 @@ import { answerMatches } from "../engine/answer";
 import { rulesPass, replay, RuleError } from "../engine/firewall";
 import { goalMet, goalsMet, MFA_LABEL, type ConsoleAction } from "../engine/console";
 import { consoleStateOf } from "./console";
+import { offsetsRight, offsetLabel } from "../engine/timeline";
+import { mergeOffsetsOf } from "./merge";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
 import {
   type MetaData,
@@ -502,7 +504,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0, firewall: 0, console: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -581,6 +583,7 @@ export class App {
         used.siem ? `${used.siem} search${used.siem === 1 ? "" : "es"}` : "",
         used.firewall ? `${used.firewall} replay${used.firewall === 1 ? "" : "s"}` : "",
         used.console ? `${used.console} admin action${used.console === 1 ? "" : "s"}` : "",
+        used.merge ? `${used.merge} clock change${used.merge === 1 ? "" : "s"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
@@ -664,6 +667,7 @@ export class App {
     if (q.type === "typed") return this.typedQuestion(q, wrap);
     if (q.type === "rules") return this.rulesQuestion(q, wrap, ctx);
     if (q.type === "console") return this.consoleQuestion(q, wrap, ctx);
+    if (q.type === "merge") return this.mergeQuestion(q, wrap, ctx);
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -844,6 +848,41 @@ export class App {
     });
     box.append(b);
     return box;
+  }
+
+  private mergeQuestion(q: Extract<Question, { type: "merge" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
+    const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence);
+    if (ev?.kind !== "merge") throw new Error(`${q.id}: ${q.evidence} is not a timeline builder`);
+    const view = ctx.evPanel.querySelector<HTMLElement>(`[data-ev="${q.evidence}"]`)!;
+    const offsets = mergeOffsetsOf(view)!;
+    wrap.append(el("p", { class: "rules-progress", text: `Set each log's clock in "${ev.label}". Submit when the merged timeline tells the true story.` }));
+    const expl = el("div", { class: "explain", hidden: true });
+    wrap.append(expl);
+    const isRight = (): boolean => offsetsRight(ev.sources, offsets);
+    return {
+      ready: () => true,
+      correct: isRight,
+      reveal: () => {
+        view.classList.add("tlb-done");
+        expl.hidden = false;
+        expl.className = isRight() ? "explain good" : "explain bad";
+        mount(
+          expl,
+          el("p", { text: isRight() ? q.explainRight : q.explainWrong }),
+          el(
+            "ul",
+            { class: "goal-list" },
+            ev.sources.map((s) => {
+              const met = (offsets[s.id] ?? 0) === s.offset;
+              return el("li", { class: met ? "met" : "missed" }, [el("span", { class: "goal-mark", text: met ? "Right" : "Wrong" }), el("span", { text: `${s.name}: ${offsetLabel(s.offset)}` })]);
+            }),
+          ),
+        );
+      },
+      mark: () => markBlock(wrap, isRight()),
+      apply: () => {},
+      focus: () => view.scrollIntoView({ behavior: scrollMotion(), block: "start" }),
+    };
   }
 
   private consoleQuestion(q: Extract<Question, { type: "console" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {

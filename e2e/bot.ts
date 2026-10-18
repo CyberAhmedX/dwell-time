@@ -170,6 +170,13 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       await expect(fw.locator(".fw-status")).toHaveClass(/good/);
       return;
     }
+    case "merge": {
+      const tl = page.locator(`[data-ev="${q.evidence}"]`);
+      const ev = TICKETS.flatMap((t) => t.evidence).find((e) => e.id === q.evidence);
+      if (ev?.kind !== "merge") throw new Error(`${q.evidence} is not a timeline builder`);
+      for (const src of ev.sources) await tl.locator(`select[data-source="${src.id}"]`).selectOption(String(src.offset));
+      return;
+    }
     case "console": {
       const adm = page.locator(`[data-ev="${q.evidence}"]`);
       for (const a of q.solution) {

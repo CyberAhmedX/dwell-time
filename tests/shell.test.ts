@@ -39,6 +39,8 @@ describe("shell", () => {
     expect(out("grep -v Failed auth.log").split("\n")).toHaveLength(3);
     expect(out("grep -i SUCCESS auth.log").split("\n")).toHaveLength(3);
     expect(out("grep -n dave auth.log")).toBe("4:09:02 203.0.113.77 dave Success");
+    expect(out("grep -l dave auth.log note.txt")).toBe("auth.log");
+    expect(out("grep -l nobody auth.log note.txt")).toBe("");
     expect(out("grep -o '203[.]0[.]113[.][0-9]*' auth.log | sort -u")).toBe("203.0.113.77");
     expect(out("grep -E 'bob|carol' auth.log").split("\n")).toHaveLength(2);
     // in basic grep, | is a plain character
@@ -80,6 +82,15 @@ describe("shell", () => {
     expect(r[400]).toContain("600 more lines");
     // pipes still see all of it
     expect(runLine("cat big.log | wc -l", big).out).toBe("1000");
+  });
+
+  it("dumps bytes like xxd", () => {
+    const bin = { "a.bin": "MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00This program" };
+    const lines = runLine("xxd a.bin", bin).out.split("\n");
+    expect(lines[0]).toBe("00000000: 4d5a 9000 0300 0000 0400 0000 ffff 0000  MZ..............");
+    expect(lines[1]).toBe("00000010: 5468 6973 2070 726f 6772 616d            This program");
+    expect(runLine("xxd -l 2 a.bin", bin).out).toBe("00000000: 4d5a                                     MZ");
+    expect(runLine("file a.bin", bin).out).toContain("xxd");
   });
 
   it("answers back in character", () => {
