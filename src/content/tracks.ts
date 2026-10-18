@@ -629,6 +629,14 @@ export const TRACK_TICKETS: Ticket[] = [
         ],
       },
       {
+        kind: "scope",
+        id: "ev_ext_checker",
+        label: "Scope checker: Water & Light external test",
+        note: "From the authorization letter. Check an address before you send it a single packet, or type a range to see what it covers.",
+        inScope: ["198.51.100.64/28"],
+        outOfScope: ["10.0.0.0/8"],
+      },
+      {
         kind: "log",
         id: "ev_ext_scan",
         label: "External scan results",
@@ -644,6 +652,24 @@ export const TRACK_TICKETS: Ticket[] = [
       },
     ],
     questions: [
+      {
+        type: "scope",
+        id: "q_ext_scope",
+        prompt: "The scanner also turned up some neighbours. Which of these targets does the letter let you test?",
+        evidence: "ev_ext_checker",
+        targets: [
+          { address: "198.51.100.66", what: "public website" },
+          { address: "198.51.100.70", what: "camera recorder admin page" },
+          { address: "198.51.100.79", what: "a mail relay answering on port 25" },
+          { address: "198.51.100.80", what: "a billing portal with the plant's logo" },
+          { address: "198.51.100.63", what: "an unnamed server one address below the range" },
+          { address: "10.20.4.7", what: "an internal address leaked in an error page" },
+        ],
+        explainRight: "Right. A /28 is sixteen addresses, .64 to .79, so .79 is in and .80 and .63 are not, logo or no logo. The internal address is inside the plant, which the letter rules out however you came to know it.",
+        explainWrong: "198.51.100.64/28 covers .64 to .79 and nothing else. .80 and .63 sit just outside it, and a plant logo on a page does not put it in scope. 10.20.4.7 is inside the plant, which the letter excludes.",
+        teaches: "scope",
+        hint: "Type the range into the scope checker to see where it starts and ends, then check each address.",
+      },
       {
         type: "spot",
         id: "q_ext_spot",
@@ -812,6 +838,16 @@ export const TRACK_TICKETS: Ticket[] = [
         teaches: "pivoting",
         hint: "Click tollgate.test's current address to see every name on it. Use the address it uses now, not the old parked one, which a real supplier also sat on.",
         solution: { evidence: "ev_leak_pivot", command: "203.0.113.90" },
+      },
+      {
+        type: "iocs",
+        id: "q_leak_block",
+        prompt: "Write Mags a block list for the Tollkeepers' infrastructure: every name on their current address, and the address itself. Defang every one.",
+        answer: ["tollgate.test", "paywall-tollkeepers.test", "status-tollgate.test", "203.0.113.90"],
+        explainRight: "Right. Three names and the address they share, each defanged so nobody clicks one by accident. The old parked address stays off the list: a real school supplier lives there, and blocking it would cut the district off from its own reading platform.",
+        explainWrong: "The list is the three names on 203.0.113.90 and the address itself, all defanged, like tollgate[.]test. Leave out 198.51.100.66 and reading-portal.example: that is a real supplier on an old shared address.",
+        teaches: "defanging",
+        hint: "Look up the current address on the board and list everything on it. Break the last dot of each one with [.], like bad[.]example.",
       },
       {
         type: "decision",

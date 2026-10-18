@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { play, save, meta, practiseCase, type Plan } from "./bot";
+import { play, save, meta, practiseCase, answerOne, type Plan } from "./bot";
 import { ENDINGS } from "../src/engine/endings";
 import { DEPTS, DEPT_LABEL } from "../src/engine/types";
 import { TICKETS } from "../src/content/tickets";
@@ -28,6 +28,9 @@ test("one full run, then every other ending through chapter select", async ({ pa
   const [card] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download image" }).click()]);
   expect(card.suggestedFilename()).toBe("dwell-time-lighthouse-Riley.png");
   await page.locator(".overlay-close").click();
+
+  // the forensics secret, found during the clean run, is recorded
+  expect((await save(page)).flags).toContain("secret_forensics");
 
   const clean = await meta(page);
   for (const id of ["first_try", "chain", "scope", "lead", "by_the_book", "clean_hands", "no_hints", "side_work"]) {
@@ -68,6 +71,31 @@ for (const dept of DEPTS) {
     for (const t of others) expect(s.done).not.toContain(t.id);
   });
 }
+
+test("the chapter five finale runs live and hands out take-home files", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto(GAME);
+  await page.evaluate(() => {
+    localStorage.setItem("dwell-time.save.v1", JSON.stringify({ version: 1, playerName: "Nz", track: "soc", hired: true, chapter: 5, xp: 600, integrity: 4, flags: ["track_soc", "finale_ready", "intro_5"], done: ["intro_5"], codex: [], interviewScore: 5, cleanCloses: 8, totalCloses: 8, botched: 0, interviewFails: 0, hintsUsed: 0, hard: false }));
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /^Continue as/ }).click();
+  await page.locator(".ticket-card", { hasText: "Something is in the plant network" }).click();
+  while (await page.locator(".vn[role=button]").count()) await page.locator(".vn[role=button]").click();
+  await expect(page.locator(".live-clock")).toBeVisible();
+  // the clock is ticking down
+  const first = await page.locator(".live-time").innerText();
+  await page.waitForTimeout(1100);
+  expect(await page.locator(".live-time").innerText()).not.toBe(first);
+  // solve it, then take home the block list
+  const t = TICKETS.find((x) => x.id === "t5_plant_recon")!;
+  const blocks = page.locator(".q-panel .q-block");
+  for (let i = 0; i < t.questions.length; i++) await answerOne(page, blocks.nth(i), t.questions[i]);
+  await page.getByRole("button", { name: "Submit findings" }).click();
+  await expect(page.locator(".ws-feedback .good-note")).toBeVisible();
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Block list (.txt)" }).click()]);
+  expect(dl.suggestedFilename()).toBe("harborwatch-block-list.txt");
+});
 
 test("hard mode never offers a hint, and practice leaves the run alone", async ({ page }) => {
   test.setTimeout(2 * 60_000);

@@ -11,6 +11,7 @@ export interface Settings {
   muted: boolean;
   textScale: number; // 1 is the default size
   reducedMotion: boolean | null; // null follows the system setting
+  relaxedTimers: boolean; // live cases get twice as long
 }
 
 export interface MetaData {
@@ -35,7 +36,7 @@ export function freshMeta(): MetaData {
     codexEver: [],
     casesEver: [],
     checkpoints: {},
-    settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null },
+    settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false },
   };
 }
 

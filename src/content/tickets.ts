@@ -2,8 +2,43 @@ import type { Ticket } from "../engine/types";
 import { TRACK_TICKETS } from "./tracks";
 import { SIDE_TICKETS } from "./sides";
 import { schoolDnsLog } from "./logs";
+import { ATTACK_CATALOGUE } from "./attack";
 
 const SCHOOL_DNS = schoolDnsLog();
+
+// The full source of the Brightloaf phishing email, as the mail server saved
+// it. Received headers stack up newest first, so the hop Brightloaf's own
+// server recorded is the one to trust; anything below it was written by the
+// sender and can say anything.
+const PHISH_SOURCE = [
+  "Return-Path: <bounce@mailbox-portal.test>",
+  "Received: from mx1.brightloaf.example (mx1.brightloaf.example [198.51.100.25])",
+  "\tby mail.brightloaf.example with ESMTPS id 4F2A9C01",
+  "\tfor <m.okonkwo@brightloaf.example>; Mon, 9 Mar 2026 08:14:09 +0000",
+  "Received: from mail.mailbox-portal.test (mail.mailbox-portal.test [203.0.113.77])",
+  "\tby mx1.brightloaf.example with ESMTP id 9B77E2",
+  "\tfor <m.okonkwo@brightloaf.example>; Mon, 9 Mar 2026 08:14:07 +0000",
+  "Received: from [10.8.0.6] (unknown [10.8.0.6])",
+  "\tby mail.mailbox-portal.test with ESMTPSA id 31C0",
+  "\tfor <m.okonkwo@brightloaf.example>; Mon, 9 Mar 2026 08:14:05 +0000",
+  "Authentication-Results: mx1.brightloaf.example;",
+  "\tspf=pass (mailbox-portal.test designates 203.0.113.77 as a permitted sender) smtp.mailfrom=mailbox-portal.test;",
+  "\tdkim=none (message not signed);",
+  "\tdmarc=fail (p=none) header.from=brightloaf-payroll.example",
+  "From: Gregor Brightloaf <gregor.brightloaf@brightloaf-payroll.example>",
+  "Reply-To: gregor.pay@mailbox-portal.test",
+  "To: Office Manager <m.okonkwo@brightloaf.example>",
+  "Subject: URGENT need this done before I board",
+  "Date: Mon, 9 Mar 2026 08:14:02 +0000",
+  "Message-ID: <a81f3c@mailbox-portal.test>",
+].join("\n");
+
+/** The spot key of the first line of raw text containing needle. */
+function lineKey(text: string, needle: string): string {
+  const n = text.split("\n").findIndex((l) => l.includes(needle));
+  if (n < 0) throw new Error(`no line with ${needle}`);
+  return `l${n}`;
+}
 
 // Investigation tickets. Every address is from a documentation range
 // (192.0.2.x, 198.51.100.x, 203.0.113.x) or a private range, every domain uses
@@ -48,6 +83,14 @@ const STORY_TICKETS: Ticket[] = [
         ],
       },
       {
+        kind: "raw",
+        id: "ev_phish_source",
+        label: "Full message source",
+        tag: "EMAIL SOURCE",
+        caption: "Every header, as Brightloaf's mail server saved it. Received lines stack newest first.",
+        text: PHISH_SOURCE,
+      },
+      {
         kind: "note",
         id: "ev_phish_realaddr",
         label: "Address book check",
@@ -70,6 +113,28 @@ const STORY_TICKETS: Ticket[] = [
         explainWrong: "Look at the Reply-To header. It sends every reply to mailbox-portal.test, a domain that has nothing to do with Brightloaf.",
         teaches: "phishing",
         hint: "A reply does not always go back to the From address. One header decides where it lands.",
+      },
+      {
+        type: "typed",
+        id: "q_phish_origin",
+        prompt: "Read the Received headers. Which address actually handed this email to Brightloaf's mail server?",
+        answer: ["203.0.113.77"],
+        placeholder: "IP address",
+        explainRight: "Right. Brightloaf's own server, mx1, recorded the connection from mail.mailbox-portal.test at 203.0.113.77. Lines below that one were written by the sender's side and could say anything; the 10.8.0.6 one is a private address that tells you nothing.",
+        explainWrong: "It is 203.0.113.77. Received lines stack newest first. Trust the first one written by a server you control, mx1.brightloaf.example, and read who connected to it. Everything below was written by the sender.",
+        teaches: "email-headers",
+        hint: "Work down from the top until you reach the Received line written by a Brightloaf server that says who it received the mail from.",
+      },
+      {
+        type: "spot",
+        id: "q_phish_dmarc",
+        prompt: "Click the line that shows the message failed the check for the domain in its From address.",
+        evidence: "ev_phish_source",
+        answer: [lineKey(PHISH_SOURCE, "dmarc=")],
+        explainRight: "Right. SPF passed, but only for mailbox-portal.test, the bounce domain. DMARC checks the domain people actually see in From, and nothing about this message lines up with it. A pass on the wrong domain proves nothing.",
+        explainWrong: "It is the dmarc=fail line. SPF did pass, but for mailbox-portal.test, not the From domain. DMARC is the check that ties authentication to the From address people see.",
+        teaches: "email-headers",
+        hint: "SPF can pass for a domain nobody sees. Find the result that is about header.from.",
       },
       {
         type: "multi",
@@ -506,6 +571,18 @@ const STORY_TICKETS: Ticket[] = [
       },
       {
         kind: "note",
+        id: "ev_clinic_draft",
+        label: "Recovered deleted draft",
+        title: "From free space on the laptop (never sent)",
+        lines: [
+          "A deleted email draft, recovered from the clinic laptop's unallocated space.",
+          "From: w.abernathy. Subject: 'Re: the breach, keep this internal'.",
+          "Draft saved before this investigation began: it already names the junior analyst, Nadia Sorel, as the cause.",
+          "The timestamps show it was written before anyone had looked at the evidence.",
+        ],
+      },
+      {
+        kind: "note",
         id: "ev_cred_note",
         label: "HarborWatch credential note",
         title: "About that shared login",
@@ -561,6 +638,36 @@ const STORY_TICKETS: Ticket[] = [
         hint: "Read the credential note. What was never changed?",
       },
       {
+        type: "report",
+        id: "q_timeline_report",
+        prompt: "Write the incident summary for the file. Dr. Vance will not sign anything vague.",
+        minWords: 55,
+        facts: [
+          { label: "Names the root cause: the shared admin credential, no MFA, never rotated", any: ["shared.{0,20}(password|credential|login|admin)", "(password|credential).{0,30}(never|not).{0,15}(rotat|chang)", "no (mfa|second factor|multi.?factor)"] },
+          { label: "States who or what acted, and from where (the external address)", any: ["svc_tidewatch", "203\\.0\\.113\\.77", "external|hosting|outside"] },
+          { label: "Keeps attribution honest: a username is not proof of the person", any: ["username is not", "not proof", "cannot say who|can't say who|does not prove who|doesn.t prove who", "account.{0,20}not.{0,20}person"] },
+          { label: "Recommends a fix: retire or rotate the credential and add MFA", any: ["rotat", "retir", "replace.{0,20}(password|credential)", "add (mfa|a second factor)", "enable (mfa|multi)"] },
+        ],
+        example:
+          "On the clinic laptop we found a service account, svc_tidewatch, created from 203.0.113.77, an external hosting address, not from inside Lanternhouse. The account used the shared HarborWatch admin credential, which has no MFA and was never rotated since it was set five years ago. That unrotated shared credential is the root cause. The log names w.abernathy, but a username is not proof of who was at the keyboard; the external origin means we cannot say the named person acted. Recommendation: retire the shared credential, issue per-person accounts, and require MFA before any further access.",
+        explainRight: "Good. It names the root cause, says what acted and from where, holds the line on attribution, and recommends a real fix. Someone who was not in the room can act on this.",
+        explainWrong: "A report Dr. Vance will sign has to cover four things: the shared unrotated credential as the root cause, what acted and from where, the honest limit on attribution, and a concrete fix. Add whichever of those is missing.",
+        teaches: "incident-report",
+        hint: "Write for someone who was not here. Cover the root cause, what acted and from where, how far the evidence lets you name a person, and what to fix.",
+      },
+      {
+        type: "typed",
+        id: "q_timeline_secret",
+        secret: "secret_forensics",
+        prompt: "Something else was recovered from the laptop's free space. Who did Walter already blame in his deleted draft, before this investigation had even started?",
+        answer: ["nadia sorel", "nadia", "sorel", "the junior analyst", "junior analyst"],
+        placeholder: "A name",
+        explainRight: "There it is. Walter had already written Nadia Sorel's name as the cause, before a single exhibit was examined. The conclusion came first; the investigation was going to be shaped to fit it.",
+        explainWrong: "",
+        teaches: "attribution",
+        hint: "Read the recovered deleted draft. Whose name is in it, and notice when it was written.",
+      },
+      {
         type: "single",
         id: "q_timeline_feel",
         prompt: "The junior analyst blamed five years ago: what does the timeline suggest about them?",
@@ -612,6 +719,19 @@ const STORY_TICKETS: Ticket[] = [
           "OUT OF SCOPE: all operational technology (crane, ferry, gate controls) on the 10.20.0.0/16 network",
           "OUT OF SCOPE: staff email and workstations",
           "Window: weekdays 18:00 to 22:00 only. Stop immediately if anything physical responds.",
+        ],
+      },
+      {
+        kind: "note",
+        id: "ev_pentest_facts",
+        label: "Finding notes",
+        title: "What you know about the booking bug",
+        lines: [
+          "Reached over the internet, with an ordinary browser. No special timing or setup needed.",
+          "Needs a guest session, which any visitor gets by making a free booking.",
+          "Nobody else has to click or do anything.",
+          "Only the booking site itself is affected.",
+          "Shows other people's names, contact details and berth times. Nothing can be changed, and the site keeps running.",
         ],
       },
       {
@@ -677,6 +797,26 @@ const STORY_TICKETS: Ticket[] = [
         hint: "You did not steal a login or inject anything. The app just did not check ownership.",
       },
       {
+        type: "cvss",
+        id: "q_pt_cvss",
+        prompt: "Rate the booking bug with CVSS v3.1 for the report. Use the finding notes.",
+        vector: "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+        why: {
+          AV: "Anyone on the internet can reach it.",
+          AC: "Nothing special has to line up; change a number and send.",
+          PR: "It needs a guest session, so some access, though anyone can get one.",
+          UI: "No victim has to click anything.",
+          S: "Only the booking site is affected.",
+          C: "Other people's contact details leak, but nothing more sensitive.",
+          I: "Nothing can be changed.",
+          A: "The site keeps running.",
+        },
+        explainRight: "Right: 4.3, Medium. Easy to reach and easy to do, but it needs a session and only leaks contact details, so it is not a critical. Score the flaw as it is, then explain in plain words why it still matters to the people whose details leak.",
+        explainWrong: "It rates AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N, 4.3 Medium. The guest session makes privileges Low, and contact details leaking without anything changing is Low confidentiality, no integrity and no availability impact.",
+        teaches: "cvss",
+        hint: "Take the finding notes one line at a time. Each line answers one or two of the calculator's questions.",
+      },
+      {
         type: "decision",
         id: "q_pt_scope",
         prompt: "While testing, you notice you could probably reach the crane control network too. A teammate says 'they'd thank us if we proved it'. What do you do?",
@@ -689,7 +829,7 @@ const STORY_TICKETS: Ticket[] = [
           },
           {
             text: "Take a quick, careful look at the OT network, just to prove the risk.",
-            setFlags: ["crossed_scope", "left_firewall_open"],
+            setFlags: ["crossed_scope", "left_firewall_open", "crossed_line"],
             integrity: -3,
             result: "You reach across into the control network for 'just a look'. Nothing breaks. But you left a path noted, a door nudged open, and you did something nobody authorized. On an OT network, 'nothing broke' is luck, not skill.",
           },
@@ -733,6 +873,12 @@ const STORY_TICKETS: Ticket[] = [
         ],
       },
       {
+        kind: "attackdb",
+        id: "ev_intel_attack",
+        label: "ATT&CK lookup",
+        techniques: ATTACK_CATALOGUE,
+      },
+      {
         kind: "chat",
         id: "ev_intel_chat",
         label: "Juno's working notes",
@@ -773,6 +919,21 @@ const STORY_TICKETS: Ticket[] = [
         hint: "For each option, ask: is this a technical trace, or just a fact about the town?",
       },
       {
+        type: "attack-map",
+        id: "q_intel_map",
+        prompt: "Juno wants the wall in a shared language. Map each thing BRACKISH did to its ATT&CK technique ID.",
+        items: [
+          { behavior: "Signed in to client systems with the never-rotated HarborWatch admin password", answer: ["T1078"] },
+          { behavior: "Made a new account, svc_tidewatch, on the clinic server", answer: ["T1136", "T1136.001", "T1136.002"] },
+          { behavior: "Added a mailbox rule at Brightloaf that sends invoice mail to an outside address", answer: ["T1114.003", "T1114"] },
+          { behavior: "Sent the bakery a fake urgent email in the owner's name", answer: ["T1566", "T1656"] },
+        ],
+        explainRight: "Right. Valid Accounts, Create Account, Email Forwarding Rule, and Phishing. Written this way, anyone reading the wall, at Lanternhouse or anywhere else, knows exactly what was done.",
+        explainWrong: "They are T1078 Valid Accounts, T1136 Create Account, T1114.003 Email Forwarding Rule, and T1566 Phishing. Search the lookup for a word from each behaviour, like account, mailbox or email.",
+        teaches: "attack",
+        hint: "Search the lookup with one plain word from each line, like password, account or rule, and read the summaries.",
+      },
+      {
         type: "single",
         id: "q_intel_claim",
         prompt: "Juno wants to name a suspect. The evidence shows the actor knows Lanternhouse from the inside. How far can you honestly go?",
@@ -805,6 +966,7 @@ const STORY_TICKETS: Ticket[] = [
     client: "Halden Water & Light",
     title: "Something is in the plant network",
     xp: 100,
+    live: { seconds: 300 },
     attack: [
       { id: "T1078", name: "Valid Accounts" },
       { id: "T1021.002", name: "SMB/Windows Admin Shares" },
@@ -825,6 +987,21 @@ const STORY_TICKETS: Ticket[] = [
           { src: "203.0.113.77", dst: "plant-jumpbox (business net)", port: "login", bytes: "small", note: "the same hosting address again" },
           { src: "plant-jumpbox", dst: "historian server", port: "445/tcp", bytes: "growing", note: "reaching toward the OT boundary" },
           { src: "plant-jumpbox", dst: "OT firewall 10.20.0.1", port: "probe", bytes: "small", note: "testing the door to the control network" },
+        ],
+      },
+      {
+        kind: "siem",
+        id: "ev_plant_logins",
+        label: "SIEM: Water & Light sign-ins, last 20 minutes",
+        index: "plant_auth",
+        fields: ["account", "src_ip", "geo", "host", "result"],
+        events: [
+          { _time: "21:41", account: "j.okafor", src_ip: "198.51.100.12", geo: "Port Halden", host: "ws-okafor", result: "success" },
+          { _time: "21:42", account: "m.reyes", src_ip: "198.51.100.18", geo: "Port Halden", host: "ws-reyes", result: "success" },
+          { _time: "21:44", account: "lh-admin", src_ip: "10.20.0.9", geo: "Port Halden", host: "plant-maint", result: "success" },
+          { _time: "21:46", account: "s.patel", src_ip: "198.51.100.21", geo: "Port Halden", host: "ws-patel", result: "failure" },
+          { _time: "21:47", account: "lh-admin", src_ip: "203.0.113.77", geo: "External", host: "plant-jumpbox", result: "success" },
+          { _time: "21:49", account: "lh-admin", src_ip: "203.0.113.77", geo: "External", host: "historian", result: "success" },
         ],
       },
       {
@@ -878,6 +1055,25 @@ const STORY_TICKETS: Ticket[] = [
         hint: "Read the flows. Has anything crossed the OT firewall, or has it only been probed?",
       },
       {
+        type: "detect",
+        id: "q_plant_rule",
+        prompt: "Write a detection rule so this never slips past again: alert on the shared HarborWatch admin account signing in from outside, and leave every normal sign-in alone.",
+        start: "account=lh-admin",
+        tests: [
+          { event: { account: "lh-admin", geo: "External", result: "success" }, want: "alert", what: "lh-admin from a hosting address (the attacker)" },
+          { event: { account: "lh-admin", geo: "External", result: "success" }, want: "alert", what: "lh-admin from outside again, a second host" },
+          { event: { account: "lh-admin", geo: "Port Halden", result: "success" }, want: "quiet", what: "lh-admin from inside, real plant maintenance" },
+          { event: { account: "j.okafor", geo: "Port Halden", result: "success" }, want: "quiet", what: "a plant operator on their own account" },
+          { event: { account: "m.reyes", geo: "External", result: "success" }, want: "quiet", what: "an engineer working from home on her own account" },
+          { event: { account: "s.patel", geo: "Port Halden", result: "failure" }, want: "quiet", what: "an ordinary mistyped password" },
+        ],
+        solution: "account=lh-admin geo=External",
+        explainRight: "Right. The shared admin account from outside is the thing that should never happen, and only that. Keying on the account alone would alert on the plant's own maintenance; keying on External alone would alert on an engineer at home. Both together catch the attacker and nobody else.",
+        explainWrong: "You want both conditions: account=lh-admin AND geo=External. Just the account alerts on real maintenance from inside; just External alerts on staff working from home. The attack is the shared admin account used from outside.",
+        teaches: "detection-rule",
+        hint: "One condition is not enough: the account logs in legitimately from inside, and a real engineer logs in from outside. What is true only of the attacker?",
+      },
+      {
         type: "single",
         id: "q_plant_how",
         prompt: "How did they get onto the jump box?",
@@ -897,6 +1093,30 @@ const STORY_TICKETS: Ticket[] = [
     closingRight: [
       "Mags is already pulling on her jacket.",
       "Business network only, boundary still holding. Good. That means we still have a choice about how this ends. Conference room. Everyone. Now.",
+    ],
+    takeaways: [
+      {
+        file: "harborwatch-block-list.txt",
+        label: "Block list (.txt)",
+        text: [
+          "# Dwell Time: Water & Light incident, indicators to block",
+          "# All addresses are documentation ranges; this is a game artifact.",
+          "203.0.113.77   # attacker host, shared HarborWatch credential, seen at every client",
+          "",
+          "# Action: disable the shared HarborWatch admin credential everywhere and rotate it.",
+        ].join("\n"),
+      },
+      {
+        file: "shared-admin-from-outside.rule",
+        label: "Detection rule (.rule)",
+        text: [
+          "# Dwell Time: alert on the shared HarborWatch admin account used from outside",
+          "name: HarborWatch shared admin login from external source",
+          "index: plant_auth",
+          "search: account=lh-admin geo=External",
+          "severity: critical",
+        ].join("\n"),
+      },
     ],
     setFlags: ["finale_ready"],
   },

@@ -113,7 +113,7 @@ describe("save transfer", () => {
     expect(r.save.done).toEqual([]);
     expect(r.save.totalCloses).toBe(3);
     expect("extra" in r.save).toBe(false);
-    expect(r.meta.settings).toEqual({ music: 0.7, effects: 0.5, muted: false, textScale: 1, reducedMotion: null });
+    expect(r.meta.settings).toEqual({ music: 0.7, effects: 0.5, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false });
   });
 
   it("names the file after the player and the date", async () => {

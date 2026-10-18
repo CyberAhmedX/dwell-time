@@ -59,6 +59,8 @@ import { CODEX } from "../content/codex";
 import { el, mount, clear, shuffled } from "./dom";
 import { renderEvidence } from "./evidence";
 import { drawShareCard, shareFileName } from "./sharecard";
+import { CROSSED_LINE, liveSeconds } from "../engine/live";
+import { type QuestionControl, markBlock, scrollMotion, scopeQuestion, cvssQuestion, iocQuestion, mapQuestion, detectQuestion, reportQuestion } from "./controls";
 
 export class App {
   private root: HTMLElement;
@@ -539,7 +541,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0, pivot: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0, pivot: 0, scope: 0, attackdb: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -551,8 +553,11 @@ export class App {
     // every case that way, with a single try.
     const hard = this.s.hard;
     const critical = t.severity === "critical" || hard;
-    const maxAttempts = hard ? 1 : critical ? 2 : Infinity;
+    // a live case is limited by its clock instead of by attempts
+    const maxAttempts = hard ? 1 : t.live ? Infinity : critical ? 2 : Infinity;
     let wrong = 0;
+    const clock = t.live && !review ? this.liveClock(t, () => closeCase(true)) : null;
+    if (clock) head.append(clock.el);
 
     if (this.practice) {
       const leave = el("button", { class: "btn ghost small", type: "button", text: "Leave practice" });
@@ -600,7 +605,11 @@ export class App {
         controls.forEach((c) => c.mark());
         audio.wrong();
         const left = maxAttempts - wrong;
-        const tail = critical ? ` ${left} attempt${left === 1 ? "" : "s"} left.` : "";
+        let tail = critical && !t.live ? ` ${left} attempt${left === 1 ? "" : "s"} left.` : "";
+        if (clock) {
+          clock.penalty(LIVE_PENALTY);
+          tail = ` That cost you ${LIVE_PENALTY} seconds.`;
+        }
         mount(feedback, el("p", { class: "warn", text: `Not quite. The answers marked in red are wrong. Re-read the evidence and try again.${tail}` }));
         return;
       }
@@ -611,6 +620,7 @@ export class App {
     // Show every answer with its explanation, then leave the case on a click,
     // so the teaching notes are actually read.
     const closeCase = (botched: boolean): void => {
+      clock?.stop();
       ctx.disarm?.();
       controls.forEach((c) => c.reveal());
       controls.forEach((c) => c.apply(this.s));
@@ -625,9 +635,14 @@ export class App {
         feedback,
         el("p", {
           class: botched ? "warn" : "good-note",
-          text: botched ? "Out of attempts. Read what each answer should have been, then close the case." : "Solved. Read the notes on each answer, then close the case.",
+          text: botched
+            ? t.live && clock?.expired()
+              ? "Out of time. Read what each answer should have been, then close the case."
+              : "Out of attempts. Read what each answer should have been, then close the case."
+            : "Solved. Read the notes on each answer, then close the case.",
         }),
       );
+      if (!botched && t.takeaways?.length) feedback.append(this.takeawayRow(t));
       const ran = [
         used.terminal ? `${used.terminal} command${used.terminal === 1 ? "" : "s"}` : "",
         used.siem ? `${used.siem} search${used.siem === 1 ? "" : "es"}` : "",
@@ -636,6 +651,8 @@ export class App {
         used.merge ? `${used.merge} clock change${used.merge === 1 ? "" : "s"}` : "",
         used.request ? `${used.request} request${used.request === 1 ? "" : "s"}` : "",
         used.pivot ? `${used.pivot} lookup${used.pivot === 1 ? "" : "s"}` : "",
+        used.scope ? `${used.scope} scope check${used.scope === 1 ? "" : "s"}` : "",
+        used.attackdb ? `${used.attackdb} ATT&CK search${used.attackdb === 1 ? "" : "es"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
@@ -649,9 +666,77 @@ export class App {
     ]);
 
     if (review && t.attack?.length) head.append(attackTags(t));
+    if (review && t.takeaways?.length) head.append(this.takeawayRow(t));
 
     this.stage.className = "stage ticket";
     mount(this.stage, head, body);
+  }
+
+  /** The countdown on a live case. It stops itself once the case leaves the screen. */
+  private liveClock(t: Ticket, onExpire: () => void): { el: HTMLElement; penalty(s: number): void; stop(): void; expired(): boolean } {
+    let left = liveSeconds(t, this.s, this.meta.settings.relaxedTimers);
+    const text = el("span", { class: "live-time" });
+    const box = el("div", { class: "live-clock", role: "timer", "aria-label": "Time left" }, [el("span", { class: "live-dot" }), el("span", { class: "live-k", text: "LIVE" }), text]);
+    const note = hasFlag(this.s, CROSSED_LINE) ? el("span", { class: "live-note", text: "Half time: the attacker is using the door you opened." }) : el("span");
+    const wrapEl = el("div", { class: "live-row" }, [box, note]);
+    let done = false;
+    let expired = false;
+    const draw = (): void => {
+      const m = Math.floor(Math.max(0, left) / 60);
+      const sec = Math.max(0, left) % 60;
+      text.textContent = `${m}:${String(sec).padStart(2, "0")}`;
+      box.classList.toggle("low", left <= 30);
+    };
+    draw();
+    const timer = window.setInterval(() => {
+      if (done) return;
+      if (!document.body.contains(box)) {
+        stop();
+        return;
+      }
+      left--;
+      draw();
+      if (left <= 10 && left > 0) audio.type();
+      if (left <= 0) {
+        expired = true;
+        stop();
+        audio.wrong();
+        onExpire();
+      }
+    }, 1000);
+    const stop = (): void => {
+      done = true;
+      clearInterval(timer);
+    };
+    return {
+      el: wrapEl,
+      penalty: (n) => {
+        left = Math.max(1, left - n);
+        draw();
+      },
+      stop,
+      expired: () => expired,
+    };
+  }
+
+  /** Download buttons for the files a solved case lets you take home. */
+  private takeawayRow(t: Ticket): HTMLElement {
+    return el("div", { class: "takeaways" }, [
+      el("span", { class: "attack-k", text: "Take home" }),
+      ...(t.takeaways ?? []).map((f) => {
+        const b = el("button", { class: "btn ghost small", type: "button", text: f.label });
+        b.addEventListener("click", () => {
+          audio.click();
+          const url = URL.createObjectURL(new Blob([f.text], { type: "text/plain" }));
+          const a = el("a", { href: url, download: f.file });
+          document.body.append(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
+        return b;
+      }),
+    ]);
   }
 
   private completeTicket(t: Ticket, grade: { wrongAttempts: number; botched: boolean; hints: number }): void {
@@ -727,6 +812,16 @@ export class App {
     if (q.type === "console") return this.consoleQuestion(q, wrap, ctx);
     if (q.type === "merge") return this.mergeQuestion(q, wrap, ctx);
     if (q.type === "request") return this.requestQuestion(q, wrap, ctx);
+    if (q.type === "cvss") return cvssQuestion(q, wrap);
+    if (q.type === "iocs") return iocQuestion(q, wrap);
+    if (q.type === "attack-map") return mapQuestion(q, wrap);
+    if (q.type === "detect") return detectQuestion(q, wrap);
+    if (q.type === "report") return reportQuestion(q, wrap);
+    if (q.type === "scope") {
+      const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence);
+      if (ev?.kind !== "scope") throw new Error(`${q.id}: ${q.evidence} is not a scope checker`);
+      return scopeQuestion(q, wrap, ev);
+    }
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -1064,22 +1159,37 @@ export class App {
       wrap.querySelector(".q-mark")?.remove();
     });
     const isRight = (): boolean => answerMatches(input.value, q.answer);
+    // A secret question is optional: it never holds the case up, and it is
+    // only judged when the case closes.
+    if (q.secret) {
+      wrap.classList.add("q-secret");
+      wrap.prepend(el("p", { class: "secret-tag", text: "Optional. For the curious." }));
+    }
     return {
-      ready: () => input.value.trim() !== "",
-      correct: isRight,
+      ready: () => !!q.secret || input.value.trim() !== "",
+      correct: () => !!q.secret || isRight(),
       reveal: () => {
         input.readOnly = true;
         input.classList.toggle("right", isRight());
         input.classList.toggle("wrong", !isRight());
         expl.hidden = false;
         expl.className = isRight() ? "explain good" : "explain bad";
+        if (q.secret && !isRight()) {
+          // a secret is never handed over; it waits for the next run
+          mount(expl, el("p", { text: "Not found this time. It is still in there, if you come back to this case." }));
+          return;
+        }
         const parts: HTMLElement[] = [el("p", { text: isRight() ? q.explainRight : q.explainWrong })];
         if (!isRight()) parts.push(el("p", { class: "typed-answer", text: `Answer: ${q.answer[0]}` }));
         if (q.solution) parts.push(el("p", { class: "typed-way" }, [el("span", { text: "One way to find it: " }), el("code", { text: q.solution.command })]));
         mount(expl, ...parts);
       },
-      mark: () => markBlock(wrap, isRight()),
-      apply: () => {},
+      mark: () => {
+        if (!q.secret) markBlock(wrap, isRight());
+      },
+      apply: (sv) => {
+        if (q.secret && isRight()) setFlag(sv, q.secret);
+      },
       focus: () => {
         wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" });
         input.focus({ preventScroll: true });
@@ -1600,6 +1710,18 @@ export class App {
           changed();
         },
       ),
+      choices(
+        "Relaxed timers",
+        [
+          { text: "Off", value: false },
+          { text: "On: live cases get twice as long", value: true },
+        ],
+        set.relaxedTimers,
+        (v) => {
+          set.relaxedTimers = v;
+          changed();
+        },
+      ),
       el("div", { class: "set-row" }, [record]),
       el("div", { class: "set-row" }, [
         el("span", { class: "set-label", text: "Your save lives in this browser. Export it as a backup, or to carry on somewhere else." }),
@@ -1876,28 +1998,6 @@ export class App {
 
 // ----- helpers -----
 
-function markBlock(wrap: HTMLElement, right: boolean): void {
-  wrap.classList.toggle("q-right", right);
-  wrap.classList.toggle("q-wrong", !right);
-  let note = wrap.querySelector<HTMLElement>(".q-mark");
-  if (!note) {
-    note = el("p", { class: "q-mark" });
-    wrap.insertBefore(note, wrap.children[1] ?? null);
-    // the mark goes away as soon as the answer is changed
-    wrap.addEventListener("click", (e) => {
-      if ((e.target as HTMLElement).closest("button")) {
-        wrap.classList.remove("q-right", "q-wrong");
-        note?.remove();
-      }
-    }, { once: true });
-  }
-  note.textContent = right ? "Correct" : "Not right yet";
-}
-
-function scrollMotion(): ScrollBehavior {
-  return document.documentElement.classList.contains("reduce-motion") ? "auto" : "smooth";
-}
-
 function stat(label: string, value: string): HTMLElement {
   return el("div", { class: "stat" }, [
     el("span", { class: "stat-k", text: label }),
@@ -1931,6 +2031,9 @@ function describeAction(a: ConsoleAction, users: readonly { upn: string; rules: 
   }
 }
 
+/** Seconds wrong on a live case cost. */
+const LIVE_PENALTY = 15;
+
 function hintFlag(q: Question): string {
   return `hint:${q.id}`;
 }
@@ -1940,16 +2043,6 @@ function attackTags(t: Ticket): HTMLElement {
     el("span", { class: "attack-k", text: "MITRE ATT&CK" }),
     ...(t.attack ?? []).map((a) => el("span", { class: "attack-tag", text: `${a.id} ${a.name}` })),
   ]);
-}
-
-interface QuestionControl {
-  ready(): boolean;
-  correct(): boolean;
-  reveal(): void;
-  /** After a wrong submit: say whether this answer is right, without showing the right option. */
-  mark(): void;
-  apply(save: SaveData): void;
-  focus(): void;
 }
 
 const TRACK_PITCH: Record<Dept, string> = {

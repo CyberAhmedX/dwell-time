@@ -17,7 +17,11 @@ export function pickTargets(ev: Evidence): PickTarget[] {
     case "merge":
     case "request":
     case "pivot":
+    case "scope":
+    case "attackdb":
       return []; // you type into these, you do not point at them
+    case "raw":
+      return rawLines(ev.text).map((l) => ({ key: `l${l.n}`, label: l.text }));
     case "email": {
       const out: PickTarget[] = [
         { key: "h:From", label: `From: ${ev.from}` },
@@ -42,6 +46,11 @@ export function pickTargets(ev: Evidence): PickTarget[] {
     case "note":
       return ev.lines.map((l, i) => ({ key: `l${i}`, label: l }));
   }
+}
+
+/** The non-blank lines of raw evidence, numbered by their line in the text. */
+export function rawLines(text: string): { n: number; text: string }[] {
+  return text.split("\n").flatMap((t, n) => (t.trim() ? [{ n, text: t }] : []));
 }
 
 /** Tree nodes in depth-first order, the order their keys are numbered in. */

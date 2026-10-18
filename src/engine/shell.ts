@@ -1,4 +1,5 @@
 import { sha256 } from "./sha256";
+import { defang } from "./ioc";
 
 // A small, read-only shell over a case's files. It runs the commands an analyst
 // reaches for first, with real syntax and real output formats, so what you learn
@@ -25,7 +26,7 @@ type Stage = (args: string[], input: string | null, ctx: Ctx) => { out: string; 
 
 const MAX_LINES = 400;
 
-export const COMMANDS = ["ls", "cat", "head", "tail", "grep", "sort", "uniq", "wc", "cut", "awk", "base64", "sha256sum", "xxd", "echo", "history", "clear", "help"];
+export const COMMANDS = ["ls", "cat", "head", "tail", "grep", "sort", "uniq", "wc", "cut", "awk", "base64", "sha256sum", "xxd", "defang", "echo", "history", "clear", "help"];
 
 export function runLine(line: string, files: Files, history: readonly string[] = []): ShellResult {
   const trimmed = line.trim();
@@ -247,6 +248,7 @@ const BUILTINS: Record<string, Stage> = {
       "  base64 [-d]                  encode, or -d to decode",
       "  sha256sum FILE               fingerprint a file",
       "  xxd [-l N] FILE              show a file's raw bytes in hex (-l: only the first N bytes)",
+      "  defang [FILE]                make indicators safe to paste: evil.example becomes evil[.]example",
       "  echo, history, clear",
       "Join commands with |, for example:  cut -f3 conn.log | sort | uniq -c | sort -rn | head",
     ].join("\n"),
@@ -449,6 +451,14 @@ const BUILTINS: Record<string, Stage> = {
       out.push(`${off.toString(16).padStart(8, "0")}: ${pairs.join(" ")}  ${ascii}`);
     }
     return { out: out.join("\n") };
+  }),
+
+  // Not a standard tool, but every intel team has a one-liner for it.
+  defang: guard("defang", (args, input, ctx) => {
+    const { rest } = flags(args);
+    const src = inputs("defang", rest, input, ctx);
+    if (typeof src === "string") return fail(src);
+    return { out: src.map((s) => lines(s.text).map(defang).join("\n")).join("\n") };
   }),
 
   echo: (args) => ({ out: args.join(" ") }),

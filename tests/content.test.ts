@@ -12,6 +12,12 @@ import { initConsole, act, goalsMet } from "../src/engine/console";
 import { mergeTimeline, offsetsRight } from "../src/engine/timeline";
 import { answerMatches, normalizeAnswer } from "../src/engine/answer";
 import { DEPTS } from "../src/engine/types";
+import { checkScope } from "../src/engine/scope";
+import { parseVector, baseScore } from "../src/engine/cvss";
+import { refang } from "../src/engine/ioc";
+import { testRule } from "../src/engine/detect";
+import { checkReport } from "../src/engine/report";
+import { ATTACK_CATALOGUE } from "../src/content/attack";
 import { trackFlag } from "../src/engine/state";
 
 // Gather every string of player-facing text so we can assert house rules on it.
@@ -35,6 +41,10 @@ function allText(): string[] {
   for (const t of TICKETS) {
     push(t.title);
     (t.attack ?? []).forEach((a) => push(a.name));
+    (t.takeaways ?? []).forEach((x) => {
+      push(x.label);
+      push(x.text);
+    });
     push(t.brief.join(" "));
     t.closingRight.forEach(push);
     for (const ev of t.evidence) {
@@ -46,6 +56,15 @@ function allText(): string[] {
         });
       } else if (ev.kind === "siem") {
         ev.events.forEach((e) => Object.values(e).forEach(push));
+      } else if (ev.kind === "raw") {
+        push(ev.caption);
+        push(ev.text);
+      } else if (ev.kind === "scope") {
+        push(ev.note);
+        ev.inScope.forEach(push);
+        ev.outOfScope.forEach(push);
+      } else if (ev.kind === "attackdb") {
+        ev.techniques.forEach((x) => [x.id, x.name, x.tactic, x.summary].forEach(push));
       } else if (ev.kind === "pivot") {
         push(ev.caption);
         push(ev.start);
@@ -129,6 +148,33 @@ function allText(): string[] {
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "merge") {
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "scope") {
+        q.targets.forEach((x) => [x.address, x.what].forEach(push));
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "cvss") {
+        Object.values(q.why).forEach(push);
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "iocs") {
+        q.answer.forEach(push);
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "attack-map") {
+        q.items.forEach((x) => push(x.behavior));
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "detect") {
+        push(q.start);
+        push(q.solution);
+        q.tests.forEach((x) => push(x.what));
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "report") {
+        q.facts.forEach((x) => push(x.label));
+        push(q.example);
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "request") {
@@ -487,6 +533,90 @@ describe("timeline builder cases", () => {
       const order = mergeTimeline(ev.sources, right).map((e) => e.text);
       const wrong = mergeTimeline(ev.sources, untouched).map((e) => e.text);
       expect(order, `${q.id}: the wrong clocks should tell a different story`).not.toEqual(wrong);
+    }
+  });
+});
+
+describe("scope, CVSS, block list and ATT&CK questions", () => {
+  const qs = TICKETS.flatMap((t) => t.questions.map((q) => ({ t, q })));
+
+  it("scope questions have targets on both sides of the line", () => {
+    for (const { t, q } of qs) {
+      if (q.type !== "scope") continue;
+      const ev = t.evidence.find((e) => e.id === q.evidence);
+      expect(ev?.kind, q.id).toBe("scope");
+      if (ev?.kind !== "scope") continue;
+      const v = q.targets.map((x) => checkScope(ev, x.address).inScope);
+      expect(v.some(Boolean), `${q.id}: something in scope`).toBe(true);
+      expect(v.some((x) => !x), `${q.id}: something out of scope`).toBe(true);
+    }
+  });
+
+  it("CVSS answers are valid vectors, with a reason for every metric", () => {
+    for (const { q } of qs) {
+      if (q.type !== "cvss") continue;
+      const v = parseVector(q.vector);
+      expect(baseScore(v), q.id).toBeGreaterThan(0);
+      expect(Object.keys(q.why).sort(), q.id).toEqual(Object.keys(v).sort());
+    }
+  });
+
+  it("block lists hold distinct indicators, none of them defanged in the answer key", () => {
+    for (const { q } of qs) {
+      if (q.type !== "iocs") continue;
+      expect(new Set(q.answer.map(refang)).size, q.id).toBe(q.answer.length);
+      for (const a of q.answer) expect(refang(a), q.id).toBe(a.toLowerCase());
+    }
+  });
+
+  it("ATT&CK answers and case tags are real entries in the lookup", () => {
+    const byId = new Map(ATTACK_CATALOGUE.map((x) => [x.id, x]));
+    for (const { q } of qs) {
+      if (q.type !== "attack-map") continue;
+      for (const it of q.items) expect(byId.has(it.answer[0]), `${q.id}: ${it.answer[0]}`).toBe(true);
+    }
+    for (const t of TICKETS) for (const a of t.attack ?? []) expect(byId.get(a.id)?.name, `${t.id}: ${a.id}`).toBe(a.name);
+    expect(new Set(ATTACK_CATALOGUE.map((x) => x.id)).size).toBe(ATTACK_CATALOGUE.length);
+  });
+});
+
+describe("detection rule and report questions", () => {
+  const qs = TICKETS.flatMap((t) => t.questions);
+
+  it("every detection rule's solution passes the replay and its start does not", () => {
+    for (const q of qs) {
+      if (q.type !== "detect") continue;
+      expect(q.tests.some((t) => t.want === "alert"), `${q.id}: has an attack`).toBe(true);
+      expect(q.tests.some((t) => t.want === "quiet"), `${q.id}: has a normal event`).toBe(true);
+      expect(testRule(q.solution, q.tests).ok, `${q.id}: solution`).toBe(true);
+      expect(testRule(q.start, q.tests).ok, `${q.id}: start already passes`).toBe(false);
+    }
+  });
+
+  it("every report's example covers every fact and clears the word count", () => {
+    for (const q of qs) {
+      if (q.type !== "report") continue;
+      const g = checkReport(q.example, q.facts, q.minWords);
+      expect(g.ok, `${q.id}: example misses ${q.facts.filter((_, i) => !g.covered[i]).map((f) => f.label).join("; ") || "word count"}`).toBe(true);
+      expect(checkReport("too short", q.facts, q.minWords).ok, `${q.id}: a stub passes`).toBe(false);
+    }
+  });
+
+  it("optional secret questions never block a case and set a secret flag", () => {
+    for (const t of TICKETS) {
+      for (const q of t.questions) {
+        if (!("secret" in q) || !q.secret) continue;
+        expect(q.type, `${q.id}`).toBe("typed");
+        expect(q.secret.startsWith("secret_"), q.id).toBe(true);
+      }
+    }
+  });
+
+  it("a live case has a sensible clock", () => {
+    for (const t of TICKETS) {
+      if (!t.live) continue;
+      expect(t.live.seconds, t.id).toBeGreaterThanOrEqual(60);
+      expect(t.live.seconds, t.id).toBeLessThanOrEqual(600);
     }
   });
 });

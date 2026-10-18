@@ -1,0 +1,47 @@
+import type { AttackTechnique } from "../engine/types";
+
+// A small offline slice of the MITRE ATT&CK Enterprise matrix: the techniques
+// this game's cases touch, plus a few neighbours so a lookup is not a giveaway.
+// IDs and names follow ATT&CK; the one-line summaries are written for this game.
+
+export const ATTACK_CATALOGUE: AttackTechnique[] = [
+  { id: "T1595", name: "Active Scanning", tactic: "Reconnaissance", summary: "Probing a target's addresses and services from outside to see what answers." },
+  { id: "T1583.001", name: "Acquire Infrastructure: Domains", tactic: "Resource Development", summary: "Registering domain names to use in an operation, often lookalikes." },
+  { id: "T1566", name: "Phishing", tactic: "Initial Access", summary: "Sending messages that trick people into giving access, money or credentials." },
+  { id: "T1566.001", name: "Spearphishing Attachment", tactic: "Initial Access", summary: "A targeted email carrying a malicious file." },
+  { id: "T1566.004", name: "Spearphishing Voice", tactic: "Initial Access", summary: "A targeted phone call that talks someone into giving access or codes." },
+  { id: "T1566.002", name: "Spearphishing Link", tactic: "Initial Access", summary: "A targeted email carrying a link to a malicious site." },
+  { id: "T1190", name: "Exploit Public-Facing Application", tactic: "Initial Access", summary: "Abusing a flaw in an internet-facing website or service to get in." },
+  { id: "T1133", name: "External Remote Services", tactic: "Initial Access", summary: "Getting in through a VPN, remote desktop gateway or other remote access meant for staff." },
+  { id: "T1078", name: "Valid Accounts", tactic: "Initial Access", summary: "Signing in with real credentials that were stolen, guessed, shared or never changed." },
+  { id: "T1078.001", name: "Default Accounts", tactic: "Initial Access", summary: "Signing in with a vendor's built-in account, like admin/admin." },
+  { id: "T1059.001", name: "PowerShell", tactic: "Execution", summary: "Running commands and scripts through PowerShell." },
+  { id: "T1204.002", name: "User Execution: Malicious File", tactic: "Execution", summary: "Getting a person to open a file that runs the attacker's code." },
+  { id: "T1136", name: "Create Account", tactic: "Persistence", summary: "Making a new account to keep access, such as a service account nobody asked for." },
+  { id: "T1547.001", name: "Registry Run Keys / Startup Folder", tactic: "Persistence", summary: "Making a program start again at every sign-in or boot." },
+  { id: "T1114.003", name: "Email Forwarding Rule", tactic: "Collection", summary: "A mailbox rule that quietly sends copies of mail somewhere else." },
+  { id: "T1564.008", name: "Email Hiding Rules", tactic: "Defense Evasion", summary: "A mailbox rule that hides mail from the owner, for example by moving it to an unused folder." },
+  { id: "T1562.001", name: "Impair Defenses: Disable or Modify Tools", tactic: "Defense Evasion", summary: "Switching off or muting security tools and alerts." },
+  { id: "T1070.001", name: "Indicator Removal: Clear Windows Event Logs", tactic: "Defense Evasion", summary: "Wiping logs to hide what happened." },
+  { id: "T1111", name: "Multi-Factor Authentication Interception", tactic: "Credential Access", summary: "Capturing one-time codes or MFA tokens as they are used, for example by asking a victim to read one out." },
+  { id: "T1621", name: "Multi-Factor Authentication Request Generation", tactic: "Credential Access", summary: "Flooding someone with MFA prompts until they approve one." },
+  { id: "T1110.001", name: "Password Guessing", tactic: "Credential Access", summary: "Trying many passwords against one account." },
+  { id: "T1110.003", name: "Password Spraying", tactic: "Credential Access", summary: "Trying one or two common passwords against many accounts." },
+  { id: "T1003", name: "OS Credential Dumping", tactic: "Credential Access", summary: "Pulling password hashes or secrets out of the operating system's memory or files." },
+  { id: "T1555", name: "Credentials from Password Stores", tactic: "Credential Access", summary: "Taking saved passwords from browsers, password managers or tools that store logins." },
+  { id: "T1046", name: "Network Service Discovery", tactic: "Discovery", summary: "Scanning inside a network to find which machines run which services." },
+  { id: "T1018", name: "Remote System Discovery", tactic: "Discovery", summary: "Listing the other machines on a network." },
+  { id: "T1021.001", name: "Remote Desktop Protocol", tactic: "Lateral Movement", summary: "Moving between machines with remote desktop." },
+  { id: "T1021.002", name: "SMB/Windows Admin Shares", tactic: "Lateral Movement", summary: "Moving between machines through Windows file shares and admin shares." },
+  { id: "T1219", name: "Remote Access Tools", tactic: "Command and Control", summary: "Using legitimate remote administration software to control machines." },
+  { id: "T1071.001", name: "Application Layer Protocol: Web Protocols", tactic: "Command and Control", summary: "Talking to the attacker's server over normal-looking web traffic." },
+  { id: "T1071.004", name: "Application Layer Protocol: DNS", tactic: "Command and Control", summary: "Hiding commands or data inside DNS lookups." },
+  { id: "T1039", name: "Data from Network Shared Drive", tactic: "Collection", summary: "Copying files from shared drives on the network." },
+  { id: "T1114", name: "Email Collection", tactic: "Collection", summary: "Taking email from mailboxes or mail servers." },
+  { id: "T1048", name: "Exfiltration Over Alternative Protocol", tactic: "Exfiltration", summary: "Sending stolen data out over a protocol other than the main channel, like DNS." },
+  { id: "T1041", name: "Exfiltration Over C2 Channel", tactic: "Exfiltration", summary: "Sending stolen data out over the same channel used for control." },
+  { id: "T1486", name: "Data Encrypted for Impact", tactic: "Impact", summary: "Encrypting files so the owner cannot use them, usually for ransom." },
+  { id: "T1490", name: "Inhibit System Recovery", tactic: "Impact", summary: "Deleting backups and shadow copies so a victim cannot restore." },
+  { id: "T1657", name: "Financial Theft", tactic: "Impact", summary: "Stealing money, through fraud, extortion or diverted payments." },
+  { id: "T1656", name: "Impersonation", tactic: "Defense Evasion", summary: "Pretending to be a trusted person, like a boss or supplier, to get someone to act." },
+];
