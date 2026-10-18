@@ -46,6 +46,10 @@ function allText(): string[] {
         });
       } else if (ev.kind === "siem") {
         ev.events.forEach((e) => Object.values(e).forEach(push));
+      } else if (ev.kind === "request") {
+        push(ev.app.host);
+        push(ev.request);
+        Object.values(ev.app.records).forEach((rec) => Object.values(rec).forEach(push));
       } else if (ev.kind === "merge") {
         push(ev.caption);
         ev.sources.forEach((src) => {
@@ -117,6 +121,9 @@ function allText(): string[] {
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "merge") {
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "request") {
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "console") {

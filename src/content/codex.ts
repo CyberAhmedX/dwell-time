@@ -211,6 +211,16 @@ export const CODEX: CodexEntry[] = [
     ],
   },
   {
+    id: "access-control",
+    term: "Broken access control (IDOR)",
+    dept: "pentest",
+    body: [
+      "Access control decides who may see or do what. It is broken when the server trusts the client to ask only for its own data.",
+      "An insecure direct object reference (IDOR) is the classic case: a record is fetched by an id in the request, and changing the id to another value returns someone else's record, because nothing checks ownership.",
+      "The fix is on the server: for every request, confirm the signed-in user is allowed to touch the thing they asked for. Hiding the id, or checking only in the page, is not enough.",
+    ],
+  },
+  {
     id: "attack",
     term: "MITRE ATT&CK",
     dept: "general",

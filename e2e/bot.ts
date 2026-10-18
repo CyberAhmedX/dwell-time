@@ -170,6 +170,17 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       await expect(fw.locator(".fw-status")).toHaveClass(/good/);
       return;
     }
+    case "request": {
+      const rq = page.locator(`[data-ev="${q.evidence}"]`);
+      const box = rq.locator(".req-input");
+      await rq.getByRole("button", { name: "Send" }).click();
+      // change the booking id to one that is not ours and send again
+      const text = await box.inputValue();
+      await box.fill(text.replace("id=1041", "id=1042"));
+      await rq.getByRole("button", { name: "Send" }).click();
+      await expect(rq.locator(".req-response")).toContainText("belongs_to_this_session");
+      return;
+    }
     case "merge": {
       const tl = page.locator(`[data-ev="${q.evidence}"]`);
       const ev = TICKETS.flatMap((t) => t.evidence).find((e) => e.id === q.evidence);

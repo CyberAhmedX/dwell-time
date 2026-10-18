@@ -29,6 +29,7 @@ import { goalMet, goalsMet, MFA_LABEL, type ConsoleAction } from "../engine/cons
 import { consoleStateOf } from "./console";
 import { offsetsRight, offsetLabel } from "../engine/timeline";
 import { mergeOffsetsOf } from "./merge";
+import { requestProvedOf } from "./request";
 import { resolveEnding, ENDINGS, ENDING_ORDER } from "../engine/endings";
 import {
   type MetaData,
@@ -504,7 +505,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -584,6 +585,7 @@ export class App {
         used.firewall ? `${used.firewall} replay${used.firewall === 1 ? "" : "s"}` : "",
         used.console ? `${used.console} admin action${used.console === 1 ? "" : "s"}` : "",
         used.merge ? `${used.merge} clock change${used.merge === 1 ? "" : "s"}` : "",
+        used.request ? `${used.request} request${used.request === 1 ? "" : "s"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
@@ -668,6 +670,7 @@ export class App {
     if (q.type === "rules") return this.rulesQuestion(q, wrap, ctx);
     if (q.type === "console") return this.consoleQuestion(q, wrap, ctx);
     if (q.type === "merge") return this.mergeQuestion(q, wrap, ctx);
+    if (q.type === "request") return this.requestQuestion(q, wrap, ctx);
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -848,6 +851,28 @@ export class App {
     });
     box.append(b);
     return box;
+  }
+
+  private requestQuestion(q: Extract<Question, { type: "request" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
+    const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence);
+    if (ev?.kind !== "request") throw new Error(`${q.id}: ${q.evidence} is not a request editor`);
+    const view = ctx.evPanel.querySelector<HTMLElement>(`[data-ev="${q.evidence}"]`)!;
+    wrap.append(el("p", { class: "rules-progress", text: `Work in "${ev.label}". Submit once you have proved the bug.` }));
+    const expl = el("div", { class: "explain", hidden: true });
+    wrap.append(expl);
+    const isRight = (): boolean => requestProvedOf(view);
+    return {
+      ready: () => true,
+      correct: isRight,
+      reveal: () => {
+        expl.hidden = false;
+        expl.className = isRight() ? "explain good" : "explain bad";
+        mount(expl, el("p", { text: isRight() ? q.explainRight : q.explainWrong }));
+      },
+      mark: () => markBlock(wrap, isRight()),
+      apply: () => {},
+      focus: () => view.scrollIntoView({ behavior: scrollMotion(), block: "start" }),
+    };
   }
 
   private mergeQuestion(q: Extract<Question, { type: "merge" }>, wrap: HTMLElement, ctx: QuestionContext): QuestionControl {
