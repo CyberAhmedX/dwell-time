@@ -416,11 +416,13 @@ describe("spot questions, hints and ATT&CK tags", () => {
 });
 
 describe("track and side cases", () => {
-  it("each track has exactly one case of its own", () => {
+  it("each track has a chapter-two case of its own, briefed by that team", () => {
     for (const d of DEPTS) {
       const own = TICKETS.filter((t) => t.requires?.includes(trackFlag(d)));
-      expect(own.length, d).toBe(1);
-      expect(own[0].dept, d).toBe(d);
+      const ch2 = own.filter((t) => t.chapter === 2);
+      expect(ch2.length, d).toBe(1);
+      expect(ch2[0].dept, d).toBe(d);
+      for (const t of own) expect(t.dept, `${t.id} is gated to ${d}`).toBe(d);
     }
   });
 
@@ -450,9 +452,9 @@ describe("track and side cases", () => {
     expect(CODEX.filter((c) => !taught.has(c.id)).map((c) => c.id)).toEqual([]);
   });
 
-  it("every track's own case offers the same integrity swing", () => {
+  it("every track's chapter-two case offers the same integrity swing", () => {
     for (const d of DEPTS) {
-      const t = TICKETS.find((x) => x.requires?.includes(trackFlag(d)))!;
+      const t = TICKETS.find((x) => x.requires?.includes(trackFlag(d)) && x.chapter === 2)!;
       const swings = t.questions.flatMap((q) => (q.type === "decision" ? q.options.map((o) => o.integrity ?? 0) : []));
       expect(Math.max(...swings), d).toBe(1);
       expect(Math.min(...swings), d).toBe(-1);

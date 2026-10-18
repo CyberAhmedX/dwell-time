@@ -29,7 +29,7 @@ export async function save(page: Page): Promise<{ chapter: number; flags: string
   return page.evaluate(() => JSON.parse(localStorage.getItem("dwell-time.save.v1") ?? "{}"));
 }
 
-export async function meta(page: Page): Promise<{ endings: string[]; achievements: string[] }> {
+export async function meta(page: Page): Promise<{ endings: string[]; achievements: string[]; secretsEver?: string[] }> {
   return page.evaluate(() => JSON.parse(localStorage.getItem("dwell-time.meta.v1") ?? "{}"));
 }
 
@@ -226,7 +226,12 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
         else if (a.type === "mfa") {
           await adm.locator(`select[data-act="mfa"]`).selectOption(a.method);
           await adm.locator(`[data-act="save-mfa"]`).click();
-        } else if (a.type === "block" || a.type === "delete-user") throw new Error("the bot never blocks or deletes");
+        } else if (a.type === "block") {
+          // the block button asks once to confirm, so click it twice
+          const btn = adm.locator(`[data-act="block"]`);
+          await btn.click();
+          await btn.click();
+        } else if (a.type === "delete-user") throw new Error("the bot never deletes accounts");
         else await adm.locator(`[data-act="${a.type}"]`).click();
       }
       return;

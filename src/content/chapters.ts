@@ -39,7 +39,7 @@ export const CHAPTERS: ChapterPlan[] = [
     title: "Chapter Three",
     subtitle: "Squall",
     intro: "s3_intro",
-    main: ["t3_clinic_image", "t3_timeline"],
+    main: ["t3_clinic_image", "t3_timeline", "t3_soc_alerts", "t3_network_flows", "t3_helpdesk_accounts", "t3_pentest_lab", "t3_intel_history"],
     side: ["sd_vishing"],
     outro: ["s3_brackish"],
   },

@@ -1,5 +1,6 @@
 import type { Ticket } from "../engine/types";
 import { TRACK_TICKETS } from "./tracks";
+import { TEAM_TICKETS } from "./teamcases";
 import { SIDE_TICKETS } from "./sides";
 import { schoolDnsLog } from "./logs";
 import { ATTACK_CATALOGUE } from "./attack";
@@ -551,7 +552,7 @@ const STORY_TICKETS: Ticket[] = [
       { id: "T1078", name: "Valid Accounts" },
       { id: "T1136", name: "Create Account" },
     ],
-    requires: ["clinic_examined"],
+    requires: ["clinic_examined", "track_forensics"],
     brief: [
       "Dr. Vance spreads the findings across two monitors.",
       "Now we read what the copy tells us, in order. Sequence is everything. Let us see who did what, and when, and be very careful about that first word. Who.",
@@ -1124,7 +1125,7 @@ const STORY_TICKETS: Ticket[] = [
 
 // Every case in the game: the shared story, one case per career track, and the
 // optional side cases.
-export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...SIDE_TICKETS];
+export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...TEAM_TICKETS, ...SIDE_TICKETS];
 
 export function ticketById(id: string): Ticket | undefined {
   return TICKETS.find((t) => t.id === id);

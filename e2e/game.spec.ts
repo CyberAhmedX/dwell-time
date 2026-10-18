@@ -20,7 +20,7 @@ test("one full run, then every other ending through chapter select", async ({ pa
   await page.goto(GAME);
 
   // A clean run: right first time, no hints, every side case, the principled choice everywhere.
-  const base: Plan = { name: "Riley", track: "soc" };
+  const base: Plan = { name: "Riley", track: "forensics" };
   expect(await play(page, base)).toBe(ENDINGS.lighthouse.title);
   // the share card downloads as an image named for the ending
   await page.getByRole("button", { name: "Share card" }).click();
@@ -55,7 +55,7 @@ test("one full run, then every other ending through chapter select", async ({ pa
 
   // the gallery shows all five
   await page.getByRole("button", { name: "Endings and achievements" }).click();
-  await expect(page.locator(".gal-item.seen")).toHaveCount(Object.keys(ENDINGS).length + all.achievements.length);
+  await expect(page.locator(".gal-item.seen")).toHaveCount(Object.keys(ENDINGS).length + all.achievements.length + (all.secretsEver?.length ?? 0));
   expect(errors).toEqual([]);
 });
 
@@ -65,12 +65,25 @@ for (const dept of DEPTS) {
     await page.goto(GAME);
     expect(await play(page, { name: "Sam", track: dept, untilChapter: 3 })).toBeNull();
     const s = await save(page);
-    const own = TICKETS.find((t) => t.requires?.includes(trackFlag(dept)))!;
-    const others = TICKETS.filter((t) => t.requires?.some((f) => f.startsWith("track_")) && t !== own);
+    const own = TICKETS.find((t) => t.requires?.includes(trackFlag(dept)) && t.chapter === 2)!;
+    const otherCh2 = TICKETS.filter((t) => t.chapter === 2 && t.requires?.some((f) => f.startsWith("track_")) && t !== own);
     expect(s.done).toContain(own.id);
-    for (const t of others) expect(s.done).not.toContain(t.id);
+    for (const t of otherCh2) expect(s.done).not.toContain(t.id);
   });
 }
+
+
+test("each team finds its own chapter-three secret", async ({ page }) => {
+  test.setTimeout(5 * 60_000);
+  for (const [track, flag] of [["helpdesk", "secret_helpdesk"], ["network", "secret_network"], ["intel", "secret_intel"], ["pentest", "secret_pentest"], ["soc", "secret_soc"]] as const) {
+    await page.goto(GAME);
+    await page.evaluate(() => { localStorage.removeItem("dwell-time.save.v1"); localStorage.removeItem("dwell-time.meta.v1"); });
+    await page.reload();
+    expect(await play(page, { name: "Sam", track, untilChapter: 4 })).toBeNull();
+    const s = await save(page);
+    expect(s.flags, `${track} sets ${flag}`).toContain(flag);
+  }
+});
 
 test("the chapter five finale runs live and hands out take-home files", async ({ page }) => {
   test.setTimeout(60_000);
