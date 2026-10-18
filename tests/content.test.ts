@@ -15,6 +15,8 @@ import { DEPTS } from "../src/engine/types";
 import { checkScope } from "../src/engine/scope";
 import { parseVector, baseScore } from "../src/engine/cvss";
 import { refang } from "../src/engine/ioc";
+import { testRule } from "../src/engine/detect";
+import { checkReport } from "../src/engine/report";
 import { ATTACK_CATALOGUE } from "../src/content/attack";
 import { trackFlag } from "../src/engine/state";
 
@@ -39,6 +41,10 @@ function allText(): string[] {
   for (const t of TICKETS) {
     push(t.title);
     (t.attack ?? []).forEach((a) => push(a.name));
+    (t.takeaways ?? []).forEach((x) => {
+      push(x.label);
+      push(x.text);
+    });
     push(t.brief.join(" "));
     t.closingRight.forEach(push);
     for (const ev of t.evidence) {
@@ -158,6 +164,17 @@ function allText(): string[] {
         push(q.explainWrong);
       } else if (q.type === "attack-map") {
         q.items.forEach((x) => push(x.behavior));
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "detect") {
+        push(q.start);
+        push(q.solution);
+        q.tests.forEach((x) => push(x.what));
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "report") {
+        q.facts.forEach((x) => push(x.label));
+        push(q.example);
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "request") {
@@ -560,5 +577,46 @@ describe("scope, CVSS, block list and ATT&CK questions", () => {
     }
     for (const t of TICKETS) for (const a of t.attack ?? []) expect(byId.get(a.id)?.name, `${t.id}: ${a.id}`).toBe(a.name);
     expect(new Set(ATTACK_CATALOGUE.map((x) => x.id)).size).toBe(ATTACK_CATALOGUE.length);
+  });
+});
+
+describe("detection rule and report questions", () => {
+  const qs = TICKETS.flatMap((t) => t.questions);
+
+  it("every detection rule's solution passes the replay and its start does not", () => {
+    for (const q of qs) {
+      if (q.type !== "detect") continue;
+      expect(q.tests.some((t) => t.want === "alert"), `${q.id}: has an attack`).toBe(true);
+      expect(q.tests.some((t) => t.want === "quiet"), `${q.id}: has a normal event`).toBe(true);
+      expect(testRule(q.solution, q.tests).ok, `${q.id}: solution`).toBe(true);
+      expect(testRule(q.start, q.tests).ok, `${q.id}: start already passes`).toBe(false);
+    }
+  });
+
+  it("every report's example covers every fact and clears the word count", () => {
+    for (const q of qs) {
+      if (q.type !== "report") continue;
+      const g = checkReport(q.example, q.facts, q.minWords);
+      expect(g.ok, `${q.id}: example misses ${q.facts.filter((_, i) => !g.covered[i]).map((f) => f.label).join("; ") || "word count"}`).toBe(true);
+      expect(checkReport("too short", q.facts, q.minWords).ok, `${q.id}: a stub passes`).toBe(false);
+    }
+  });
+
+  it("optional secret questions never block a case and set a secret flag", () => {
+    for (const t of TICKETS) {
+      for (const q of t.questions) {
+        if (!("secret" in q) || !q.secret) continue;
+        expect(q.type, `${q.id}`).toBe("typed");
+        expect(q.secret.startsWith("secret_"), q.id).toBe(true);
+      }
+    }
+  });
+
+  it("a live case has a sensible clock", () => {
+    for (const t of TICKETS) {
+      if (!t.live) continue;
+      expect(t.live.seconds, t.id).toBeGreaterThanOrEqual(60);
+      expect(t.live.seconds, t.id).toBeLessThanOrEqual(600);
+    }
   });
 });

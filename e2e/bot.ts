@@ -156,6 +156,10 @@ async function workCase(page: Page, plan: Plan): Promise<void> {
   await expect(page.locator(".ws-feedback .good-note")).toBeVisible();
 }
 
+export async function answerOne(page: Page, block: Locator, q: Question): Promise<void> {
+  return answer(page, block, q, { name: "x", track: "soc" });
+}
+
 async function answer(page: Page, block: Locator, q: Question, plan: Plan): Promise<void> {
   const opt = (text: string): Locator => withText(block, ".opt", text);
   switch (q.type) {
@@ -227,6 +231,16 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       }
       return;
     }
+    case "detect": {
+      const box = block.locator(".det-rule");
+      await box.fill(q.solution);
+      await block.getByRole("button", { name: "Test rule" }).click();
+      await expect(block.locator(".fw-status")).toHaveClass(/good/);
+      return;
+    }
+    case "report":
+      await block.locator(".report-input").fill(q.example);
+      return;
     case "scope": {
       // check each target in the scope checker first, the way a tester would
       const sc = page.locator(`[data-ev="${q.evidence}"]`);

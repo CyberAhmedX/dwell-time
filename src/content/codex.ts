@@ -260,6 +260,26 @@ export const CODEX: CodexEntry[] = [
     ],
   },
   {
+    id: "detection-rule",
+    term: "Writing a detection rule",
+    dept: "soc",
+    body: [
+      "A detection rule is a saved search that fires an alert when it matches. A good one catches every instance of the attack and nothing else.",
+      "The trade-off is between missing attacks and crying wolf. Too loose and real alerts drown in false alarms until people stop reading them; too tight and the attack slips through a gap.",
+      "Test a rule before you ship it, against a replay of known-bad and known-good events. The attacker is usually a combination: the right account from the wrong place, not the account or the place alone.",
+    ],
+  },
+  {
+    id: "incident-report",
+    term: "Writing the incident report",
+    dept: "general",
+    body: [
+      "The report is what survives the incident. Write it for someone who was not in the room: what happened, how, what you did, and what should change.",
+      "Say what the evidence supports and no more. If a log names an account, the report says the account acted, not that a named person did, unless something else proves it.",
+      "A root cause and a concrete recommendation are what make it useful. 'Be more careful' is not a fix; 'retire the shared credential and require MFA' is.",
+    ],
+  },
+  {
     id: "attack",
     term: "MITRE ATT&CK",
     dept: "general",

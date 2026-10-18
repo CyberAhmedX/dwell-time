@@ -126,6 +126,7 @@ function cleanMeta(x: unknown): MetaData {
     m.settings.muted = st.muted === true;
     if ((TEXT_SCALES as readonly number[]).includes(st.textScale as number)) m.settings.textScale = st.textScale as number;
     m.settings.reducedMotion = st.reducedMotion === true ? true : st.reducedMotion === false ? false : null;
+    m.settings.relaxedTimers = st.relaxedTimers === true;
   }
   return m;
 }

@@ -5,6 +5,8 @@ import type { ConsoleAction, ConsoleGoal, ConsoleIntruder, ConsoleUser } from ".
 import type { TimelineSource } from "./timeline";
 import type { WebApp } from "./webapp";
 import type { PivotDb } from "./pivot";
+import type { TestEvent } from "./detect";
+import type { ReportFact } from "./report";
 
 export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
 
@@ -300,6 +302,9 @@ export interface TypedQuestion {
   // one command (terminal) or search (SIEM) that finds it; shown after the case
   // closes, and tests check it really does find the answer
   solution?: { evidence: string; command: string };
+  // an optional question that digs deeper: it never blocks closing the case,
+  // and answering it right sets this flag (a team's secret)
+  secret?: string;
 }
 
 // Fix the rules in a firewall evidence item until every test flow behaves.
@@ -403,7 +408,35 @@ export interface MapQuestion {
   hint?: string;
 }
 
-export type Question = MapQuestion | IocQuestion | CvssQuestion | ScopeQuestion | RequestQuestion | MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Write a detection rule and test it against a replay of known events.
+export interface DetectQuestion {
+  type: "detect";
+  id: string;
+  prompt: string;
+  start: string; // the rule as it stands when you arrive
+  tests: TestEvent[];
+  solution: string; // one rule that works, shown after the case closes
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+// Write the incident report; it is checked for the facts it must carry.
+export interface ReportQuestion {
+  type: "report";
+  id: string;
+  prompt: string;
+  facts: ReportFact[];
+  minWords: number;
+  example: string; // a model report, shown after the case closes
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+export type Question = ReportQuestion | DetectQuestion | MapQuestion | IocQuestion | CvssQuestion | ScopeQuestion | RequestQuestion | MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {
@@ -432,6 +465,15 @@ export interface Ticket {
   attack?: AttackTag[]; // techniques the attacker used, shown once the case is solved
   speaker?: string; // who briefs the case, when it is not the team lead for dept
   team?: string; // team label shown on the case, when it is not the dept's
+  live?: { seconds: number }; // a live incident: the case runs against a clock
+  takeaways?: Takeaway[]; // files to download once the case is solved
+}
+
+// A file the player can take home from a solved case, like a block list.
+export interface Takeaway {
+  file: string; // download name
+  label: string;
+  text: string;
 }
 
 // ---------- Interview ----------

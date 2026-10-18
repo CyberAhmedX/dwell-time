@@ -1,4 +1,6 @@
-import type { CvssQuestion, IocQuestion, MapQuestion, ScopeEvidence, ScopeQuestion } from "../engine/types";
+import type { CvssQuestion, DetectQuestion, IocQuestion, MapQuestion, ReportQuestion, ScopeEvidence, ScopeQuestion } from "../engine/types";
+import { testRule } from "../engine/detect";
+import { checkReport, countWords } from "../engine/report";
 import type { SaveData } from "../engine/state";
 import { checkScope } from "../engine/scope";
 import { METRICS, METRIC_INFO, baseScore, parseVector, severity, vectorString, type Metric, type Vector } from "../engine/cvss";
@@ -252,6 +254,114 @@ export function mapQuestion(q: MapQuestion, wrap: HTMLElement): QuestionControl 
     focus: () => {
       wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" });
       inputs.find((_, i) => !ok(i))?.input.focus({ preventScroll: true });
+    },
+  };
+}
+
+// ---------- detection rule ----------
+
+export function detectQuestion(q: DetectQuestion, wrap: HTMLElement): QuestionControl {
+  const editor = el("textarea", { class: "fw-rules det-rule", rows: 3, spellcheck: "false", autocapitalize: "off", autocomplete: "off", "aria-label": "Your detection rule" }) as HTMLTextAreaElement;
+  editor.value = q.start;
+  const run = el("button", { class: "btn primary small", type: "button", text: "Test rule" });
+  const reset = el("button", { class: "btn ghost small", type: "button", text: "Reset rule" });
+  const status = el("p", { class: "fw-status", role: "status" });
+  const results = el("div", { class: "fw-results" });
+  const fields = Object.keys(q.tests[0].event);
+  wrap.append(
+    el("p", { class: "fw-help", text: "A rule is one SIEM search, judged event by event. Test it against the replay: it must alert on every attack and stay quiet on everything else." }),
+    editor,
+    el("div", { class: "btn-row" }, [run, reset]),
+    status,
+    results,
+  );
+  const draw = (): void => {
+    const r = testRule(editor.value, q.tests);
+    if (r.error) {
+      status.className = "fw-status err";
+      status.textContent = `Rule error: ${r.error}`;
+      results.replaceChildren();
+      return;
+    }
+    status.className = r.ok ? "fw-status good" : "fw-status";
+    status.textContent = `Caught ${r.caught.length} of ${r.caught.length + r.missed.length} attacks, ${r.falseAlarms.length} false alarm${r.falseAlarms.length === 1 ? "" : "s"}.`;
+    const rows = q.tests.map((t, i) => {
+      const fired = r.caught.includes(i) || r.falseAlarms.includes(i);
+      const good = (t.want === "alert") === fired;
+      return el("tr", { class: good ? "fw-ok" : "fw-bad" }, [
+        el("td", {}, [el("div", { text: t.what }), el("div", { class: "fw-flow mono", text: fields.map((f) => `${f}=${t.event[f]}`).join(" ") })]),
+        el("td", { class: "fw-act", text: t.want === "alert" ? "ATTACK" : "NORMAL" }),
+        el("td", { class: "fw-verdict", text: fired ? (good ? "alerted" : "false alarm") : good ? "quiet" : "missed" }),
+      ]);
+    });
+    mount(results, el("div", { class: "log-scroll" }, [el("table", { class: "log fw-table" }, [el("thead", {}, [el("tr", {}, ["Replayed event", "Is", "Your rule"].map((h) => el("th", { text: h })))]), el("tbody", {}, rows)])]));
+  };
+  run.addEventListener("click", () => {
+    audio.click();
+    draw();
+    wrap.dispatchEvent(new CustomEvent("tool-command", { bubbles: true, detail: { kind: "siem", evidence: q.id, line: editor.value } }));
+  });
+  reset.addEventListener("click", () => {
+    editor.value = q.start;
+    draw();
+  });
+  draw();
+  const expl = explainBox(wrap);
+  const isRight = (): boolean => testRule(editor.value, q.tests).ok;
+  return {
+    ready: () => true,
+    correct: isRight,
+    reveal: () => {
+      editor.readOnly = true;
+      draw();
+      showExplain(expl, isRight(), q, el("p", { class: "typed-way", text: "One rule that works:" }), el("pre", { class: "rules-solution", text: q.solution }));
+    },
+    mark: () => markBlock(wrap, isRight()),
+    apply: () => {},
+    focus: () => {
+      wrap.scrollIntoView({ behavior: scrollMotion(), block: "start" });
+      editor.focus({ preventScroll: true });
+    },
+  };
+}
+
+// ---------- incident report ----------
+
+export function reportQuestion(q: ReportQuestion, wrap: HTMLElement): QuestionControl {
+  const box = el("textarea", { class: "report-input", rows: 8, placeholder: "Write it for someone who was not in the room: what happened, how, what you did, and what happens next.", "aria-label": q.prompt }) as HTMLTextAreaElement;
+  const count = el("p", { class: "report-count", text: `0 words. At least ${q.minWords}.` });
+  box.addEventListener("input", () => {
+    const n = countWords(box.value);
+    count.textContent = `${n} word${n === 1 ? "" : "s"}. At least ${q.minWords}.`;
+  });
+  wrap.append(el("p", { class: "fw-help", text: `The report must cover: ${q.facts.map((f) => f.label.toLowerCase()).join("; ")}.` }), box, count);
+  const expl = explainBox(wrap);
+  const grade = () => checkReport(box.value, q.facts, q.minWords);
+  return {
+    ready: () => box.value.trim() !== "",
+    correct: () => grade().ok,
+    reveal: () => {
+      box.readOnly = true;
+      const g = grade();
+      showExplain(
+        expl,
+        g.ok,
+        q,
+        el("ul", { class: "goal-list" }, q.facts.map((f, i) => el("li", { class: g.covered[i] ? "met" : "missed" }, [el("span", { class: "goal-mark", text: g.covered[i] ? "Covered" : "Missing" }), el("span", { text: f.label })]))),
+        el("p", { class: "typed-way", text: "A report that covers it all:" }),
+        el("p", { class: "report-example", text: q.example }),
+      );
+    },
+    mark: () => {
+      const g = grade();
+      const missing = q.facts.filter((_, i) => !g.covered[i]).map((f) => f.label.toLowerCase());
+      const bits = [g.words < q.minWords ? `too short (${g.words} of ${q.minWords} words)` : "", missing.length ? `missing ${missing.join("; ")}` : ""].filter(Boolean);
+      markBlock(wrap, g.ok, bits.join(", "));
+    },
+    apply: () => {},
+    focus: () => {
+      wrap.scrollIntoView({ behavior: scrollMotion(), block: "center" });
+      box.focus({ preventScroll: true });
     },
   };
 }

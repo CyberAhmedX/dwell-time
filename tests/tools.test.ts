@@ -94,3 +94,42 @@ describe("indicators and defanging", () => {
     expect(runLine("grep -oE '[a-z-]+\\.test' r.txt | sort -u | defang", { "r.txt": "see x.test and y.test, x.test again" }).out).toBe("x[.]test\ny[.]test");
   });
 });
+
+import { testRule } from "../src/engine/detect";
+import { checkReport, countWords } from "../src/engine/report";
+
+describe("detection rule tester", () => {
+  const tests = [
+    { event: { account: "lh-admin", geo: "External" }, want: "alert" as const, what: "attacker" },
+    { event: { account: "lh-admin", geo: "Internal" }, want: "quiet" as const, what: "maintenance" },
+    { event: { account: "alice", geo: "External" }, want: "quiet" as const, what: "staff at home" },
+  ];
+  it("passes only a rule that catches every attack and no normal event", () => {
+    expect(testRule("account=lh-admin geo=External", tests).ok).toBe(true);
+    expect(testRule("account=lh-admin", tests)).toMatchObject({ ok: false, falseAlarms: [1] });
+    expect(testRule("geo=External", tests)).toMatchObject({ ok: false, falseAlarms: [2] });
+    expect(testRule("account=bob", tests)).toMatchObject({ ok: false, missed: [0] });
+  });
+  it("refuses an empty rule or one with pipe commands", () => {
+    expect(testRule("", tests).error).toBeTruthy();
+    expect(testRule("*", tests).error).toBeTruthy();
+    expect(testRule("account=lh-admin | stats count", tests).error).toBeTruthy();
+  });
+});
+
+describe("incident report check", () => {
+  const facts = [
+    { label: "root cause", any: ["shared.{0,20}(password|credential)", "never.{0,10}rotat"] },
+    { label: "the fix", any: ["rotat", "retir"] },
+  ];
+  it("counts only real words", () => {
+    expect(countWords("one two three")).toBe(3);
+    expect(countWords("  ...  --  ")).toBe(0);
+  });
+  it("needs both the facts and the length", () => {
+    const good = "The shared credential was never rotated, which is the root cause. We should rotate it and require MFA now.";
+    expect(checkReport(good, facts, 15).ok).toBe(true);
+    expect(checkReport(good, facts, 50).ok).toBe(false);
+    expect(checkReport("rotate it", facts, 1)).toMatchObject({ ok: false, covered: [false, true] });
+  });
+});

@@ -1096,3 +1096,23 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
   .sc-lists { grid-template-columns: 1fr; }
   .map-row { grid-template-columns: 1fr; }
 }
+
+/* ---------- 2.0: live cases, detection rules, reports, secrets, take-home ---------- */
+.live-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.live-clock { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid var(--rose); border-radius: 20px; font-family: var(--mono); }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rose); animation: live-pulse 1.4s ease-in-out infinite; }
+.reduce-motion .live-dot { animation: none; }
+.live-k { font-family: var(--display); font-size: calc(9px * var(--ts)); letter-spacing: 1px; color: var(--rose); }
+.live-time { font-size: calc(15px * var(--ts)); color: var(--fg); min-width: 44px; }
+.live-clock.low { border-color: var(--bad); background: rgba(224, 98, 119, 0.16); }
+.live-clock.low .live-time { color: var(--bad); }
+.live-note { font-size: calc(12px * var(--ts)); color: var(--amber-soft); }
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.det-rule { font-family: var(--mono); }
+.report-input { width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--edge); border-radius: 8px; color: var(--fg); font-family: var(--body); font-size: calc(14px * var(--ts)); padding: 10px 12px; resize: vertical; }
+.report-input:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.report-count { margin: 6px 0 0; font-family: var(--mono); font-size: calc(12px * var(--ts)); color: var(--muted); }
+.report-example { font-style: italic; color: var(--fg-dim); font-size: calc(13.5px * var(--ts)); background: rgba(70, 198, 184, 0.06); border-left: 2px solid var(--teal-dim); padding: 8px 10px; margin: 6px 0 0; }
+.q-secret { border-style: dashed; border-color: var(--edge-warm); }
+.secret-tag { font-family: var(--display); font-size: calc(9px * var(--ts)); letter-spacing: 1px; color: var(--amber); margin: 0 0 8px; }
+.takeaways { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
