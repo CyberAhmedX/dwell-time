@@ -44,6 +44,7 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **A real terminal**: dig through case files with `grep`, `cut`, `sort | uniq -c`, `sha256sum` and pipes, then type what you found. Any command that finds it counts.
 - **A SIEM to search**: Splunk-style queries like `action=failure | stats count by src_ip | sort -count`, over hundreds of events.
 - **A firewall to fix**: write ufw-style rules, replay real traffic, and watch each flow get allowed or blocked. The first matching rule wins, just like the real thing.
+- **An admin console**: lock down a hijacked account yourself. Reset the password, sign out every session, remove the attacker's mail rule, fix MFA, in the right order.
 - **Click the evidence**: some questions ask you to point at the exact log row, email header, timeline event or process that proves it, the way an analyst would.
 - **Hints that cost XP** when you are stuck, so guessing is never cheaper than reading.
 - **MITRE ATT&CK tags** on each solved case, naming the real technique it covered (for example T1566 Phishing).
