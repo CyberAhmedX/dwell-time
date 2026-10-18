@@ -25,7 +25,7 @@ type Stage = (args: string[], input: string | null, ctx: Ctx) => { out: string; 
 
 const MAX_LINES = 400;
 
-export const COMMANDS = ["ls", "cat", "head", "tail", "grep", "sort", "uniq", "wc", "cut", "awk", "base64", "sha256sum", "echo", "history", "clear", "help"];
+export const COMMANDS = ["ls", "cat", "head", "tail", "grep", "sort", "uniq", "wc", "cut", "awk", "base64", "sha256sum", "xxd", "echo", "history", "clear", "help"];
 
 export function runLine(line: string, files: Files, history: readonly string[] = []): ShellResult {
   const trimmed = line.trim();
@@ -237,8 +237,8 @@ const BUILTINS: Record<string, Stage> = {
       "  ls [-l]                      list the case files",
       "  cat FILE                     print a file",
       "  head|tail [-n N] FILE        first or last N lines (default 10)",
-      "  grep [-i -v -c -n -o -E -F] PATTERN [FILE]",
-      "                               lines matching PATTERN (-i any case, -v not matching, -c count)",
+      "  grep [-i -v -c -l -n -o -E -F] PATTERN [FILE...]",
+      "                               lines matching PATTERN (-i any case, -v not matching, -c count, -l file names)",
       "  sort [-r -n -u -k N -t SEP]  sort lines",
       "  uniq [-c]                    collapse repeated neighbouring lines (-c counts them)",
       "  wc [-l -w -c]                count lines, words, characters",
@@ -246,6 +246,7 @@ const BUILTINS: Record<string, Stage> = {
       "  awk [-F SEP] '{print $N}'    print fields; $NF is the last one",
       "  base64 [-d]                  encode, or -d to decode",
       "  sha256sum FILE               fingerprint a file",
+      "  xxd [-l N] FILE              show a file's raw bytes in hex (-l: only the first N bytes)",
       "  echo, history, clear",
       "Join commands with |, for example:  cut -f3 conn.log | sort | uniq -c | sort -rn | head",
     ].join("\n"),
@@ -275,7 +276,7 @@ const BUILTINS: Record<string, Stage> = {
   grep: guard("grep", (args, input, ctx) => {
     const { set, rest } = flags(args);
     const [pattern, ...names] = rest;
-    if (pattern === undefined) return fail("grep: usage: grep [-i -v -c -n -o -E -F] PATTERN [FILE...]");
+    if (pattern === undefined) return fail("grep: usage: grep [-i -v -c -l -n -o -E -F] PATTERN [FILE...]");
     let re: RegExp;
     try {
       re = grepRegex(pattern, set.has("E"), set.has("F"), set.has("i"));
@@ -292,7 +293,7 @@ const BUILTINS: Record<string, Stage> = {
         const hit = re.test(l) !== set.has("v");
         if (!hit) return;
         count++;
-        if (set.has("c")) return;
+        if (set.has("c") || set.has("l")) return;
         if (set.has("o") && !set.has("v")) {
           const g = new RegExp(re.source, re.flags + "g");
           for (const m of l.match(g) ?? []) out.push(`${prefix}${set.has("n") ? `${i + 1}:` : ""}${m}`);
@@ -300,7 +301,9 @@ const BUILTINS: Record<string, Stage> = {
           out.push(`${prefix}${set.has("n") ? `${i + 1}:` : ""}${l}`);
         }
       });
-      if (set.has("c")) out.push(`${prefix}${count}`);
+      if (set.has("l")) {
+        if (count > 0) out.push(name);
+      } else if (set.has("c")) out.push(`${prefix}${count}`);
     }
     return { out: out.join("\n") };
   }),
@@ -427,6 +430,27 @@ const BUILTINS: Record<string, Stage> = {
     return { out: src.map((s) => `${sha256(s.text)}  ${s.name}`).join("\n") };
   }),
 
+  // The classic hex dump: offset, 16 bytes as hex in pairs, then the printable
+  // characters. Files hold one byte per character, so binaries survive intact.
+  xxd: guard("xxd", (args, input, ctx) => {
+    const { values, rest } = flags(args, ["l"]);
+    const max = values.has("l") ? Number(values.get("l")) : Infinity;
+    if (Number.isNaN(max) || max < 0) return fail("xxd: -l needs a number of bytes");
+    const src = inputs("xxd", rest.slice(0, 1), input, ctx);
+    if (typeof src === "string") return fail(src);
+    const text = src[0].text.slice(0, max);
+    const out: string[] = [];
+    for (let off = 0; off < text.length; off += 16) {
+      const chunk = [...text.slice(off, off + 16)].map((c) => c.charCodeAt(0) & 0xff);
+      const hex = chunk.map((b) => b.toString(16).padStart(2, "0"));
+      const pairs: string[] = [];
+      for (let i = 0; i < 16; i += 2) pairs.push((hex[i] ?? "  ") + (hex[i + 1] ?? "  "));
+      const ascii = chunk.map((b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : ".")).join("");
+      out.push(`${off.toString(16).padStart(8, "0")}: ${pairs.join(" ")}  ${ascii}`);
+    }
+    return { out: out.join("\n") };
+  }),
+
   echo: (args) => ({ out: args.join(" ") }),
   history: (_args, _input, ctx) => ({ out: ctx.history.map((h, i) => `${String(i + 1).padStart(5)}  ${h}`).join("\n") }),
 };
@@ -461,5 +485,7 @@ const EXTRAS: Record<string, Stage> = {
   date: say("It is later than you think. The queue does not care."),
   man: say("No manual pages here. Type help for the short version."),
   coffee: say("Theo's coffee fund is empty again. It is always empty again."),
+  file: say("file: not installed on this box. Dr. Vance says read the magic bytes yourself: xxd -l 32 FILE"),
+  strings: say("strings: not installed on this box. grep works on binaries too: grep -o 'text' FILE"),
   meow: say(PACKET_NOT_A_FILE),
 };

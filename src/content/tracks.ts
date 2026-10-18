@@ -1,7 +1,40 @@
 import type { Ticket } from "../engine/types";
 import { clinicVpnEvents } from "./logs";
+import { sha256 } from "../engine/sha256";
 
 const CLINIC_VPN = clinicVpnEvents();
+
+// Files on the forensic workstation for the Brightloaf USB case. Each holds one
+// byte per character, so xxd shows real headers: MZ for the program, %PDF for
+// the decoy invoice.
+const USB_COPY_A = [
+  "BAKERY-PC-01 physical disk, image A",
+  "Acquired on site through a write blocker by Dr. I. Vance, Monday 11:20.",
+  "238 GB, NTFS, Windows 10.",
+].join("\n") + "\n";
+const USB_COPY_B = [
+  "BAKERY-PC-01 physical disk, image B",
+  "Acquired by Brightloaf IT from the running PC, Tuesday 16:05.",
+  "238 GB, NTFS, Windows 10. The PC was used all Tuesday morning first.",
+].join("\n") + "\n";
+const USB_HASH = sha256(USB_COPY_A);
+const z = (n: number): string => "\x00".repeat(n);
+const USB_PROGRAM =
+  "MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00\xb8" + z(7) + "@" + z(35) + "\x80\x00\x00\x00" +
+  "\x0e\x1f\xba\x0e\x00\xb4\x09\xcd!\xb8\x01L\xcd!This program cannot be run in DOS mode.\r\r\n$" + z(7) +
+  "PE\x00\x00L\x01\x03\x00" + z(16) + "InvoiceViewer" + z(3) + "203.0.113.77" + z(2) + "443" + z(4) +
+  "Software\\Microsoft\\Windows\\CurrentVersion\\Run" + z(6);
+const USB_DECOY =
+  "%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+  "4 0 obj\n<< /Length 88 >>\nstream\nBT /F1 12 Tf 72 720 Td (Invoice, March: 14 sacks of flour, 2 sacks of rye) Tj ET\nendstream\nendobj\n%%EOF\n";
+const USB_FILES: Record<string, string> = {
+  "original.sha256": `${USB_HASH}  BAKERY-PC-01 physical disk, hashed on site before imaging\n`,
+  "copyA.img": USB_COPY_A,
+  "copyB.img": USB_COPY_B,
+  "recovered_0042.bin": USB_DECOY,
+  "recovered_0043.bin": USB_PROGRAM,
+};
+
 
 // One case per career track, in chapter two. You only see the one for the team
 // you were hired into, briefed by that team's lead. Each also nudges the main
@@ -440,77 +473,90 @@ export const TRACK_TICKETS: Ticket[] = [
     requires: ["track_forensics"],
     brief: [
       "Dr. Vance has two hashes written on a sticky note, and a frown.",
-      "Forensics hire, forensics case. Brightloaf's shared office PC ran something from a USB stick. The disk was imaged twice: once on site by me, once later by their own IT. Before we say a word about what ran, tell me which copy we are allowed to trust.",
+      "Forensics hire, forensics case. Brightloaf's shared office PC ran something from a USB stick. The disk was imaged twice, once on site by me and once later by their own IT, and two files were recovered from the stick. Tell me which copy we can trust, what actually ran, and in what order it all happened. Mind the clocks.",
     ],
     evidence: [
       {
-        kind: "note",
-        id: "ev_usb_hashes",
-        label: "Acquisition record",
-        title: "Brightloaf office PC, two images",
-        lines: [
-          "Original disk, hashed on site before imaging: SHA-256 4f1c...9a2e",
-          "Copy A, imaged on site by Dr. Vance and sealed: SHA-256 4f1c...9a2e",
-          "Copy B, imaged later by the client's IT from the running PC: SHA-256 b7d0...113f",
-          "Copy B was made after the PC had been used for another full day.",
-        ],
+        kind: "terminal",
+        id: "ev_usb_box",
+        label: "Forensic workstation: disk images and files from the stick",
+        files: USB_FILES,
       },
       {
-        kind: "timeline",
-        id: "ev_usb_timeline",
-        label: "What Copy A shows",
-        events: [
-          { time: "Mon 08:51", text: "USB stick labelled INVOICES plugged in by the office manager.", mark: "info" },
-          { time: "Mon 08:52", text: "invoice_viewer.exe run from the USB stick.", mark: "bad" },
-          { time: "Mon 08:52", text: "invoice_viewer.exe adds itself to the Windows Run key, so it starts at every sign-in.", mark: "bad" },
-          { time: "Mon 08:53", text: "Outbound connection to 203.0.113.77 on port 443.", mark: "bad" },
-          { time: "Mon 09:30", text: "The office manager says the invoice never opened, so she unplugged the stick.", mark: "info" },
+        kind: "merge",
+        id: "ev_usb_clock",
+        label: "Three logs from Monday morning",
+        caption: "Port Halden is on UTC+1 in winter. All three logs cover the same winter Monday.",
+        sources: [
+          {
+            id: "usb",
+            name: "USB device history",
+            note: "From the PC's registry. The PC's clock is set to Port Halden local time.",
+            offset: 1,
+            events: [{ time: "08:51:07", text: "USB stick INVOICES first connected" }],
+          },
+          {
+            id: "win",
+            name: "Windows event log",
+            note: "Exported from BAKERY-PC-01 (10.30.1.15) by Brightloaf's IT. Times are as the PC showed them.",
+            offset: 1,
+            events: [
+              { time: "08:52:14", text: "Program started from the stick: E:\\Invoice_March.pdf.exe" },
+              { time: "08:52:16", text: "Run key added: InvoiceViewer, so it starts at every sign-in" },
+              { time: "09:30:40", text: "USB stick INVOICES removed" },
+            ],
+          },
+          {
+            id: "fw",
+            name: "Bakery firewall",
+            note: "From the firewall appliance, which logs in UTC like most network gear.",
+            offset: 0,
+            events: [
+              { time: "07:40:11", text: "10.30.1.15 to 198.51.100.80:443, till software update, allowed" },
+              { time: "07:53:02", text: "10.30.1.15 to 203.0.113.77:443, allowed" },
+              { time: "07:58:02", text: "10.30.1.15 to 203.0.113.77:443, allowed" },
+              { time: "08:03:03", text: "10.30.1.15 to 203.0.113.77:443, allowed" },
+              { time: "08:33:02", text: "10.30.1.15 to 203.0.113.77:443, allowed" },
+              { time: "08:38:02", text: "10.30.1.15 to 203.0.113.77:443, allowed" },
+            ],
+          },
         ],
       },
     ],
     questions: [
       {
-        type: "spot",
-        id: "q_usb_spot",
-        prompt: "Click the line that shows which copy you can trust.",
-        evidence: "ev_usb_hashes",
-        answer: ["l1"],
-        explainRight: "Right. Copy A's hash matches the original exactly, so it is a perfect copy. Copy B was taken a day later from a running machine, and its hash shows it.",
-        explainWrong: "It is Copy A. Its SHA-256 matches the hash of the original disk. Copy B's hash differs, because the PC kept changing after the incident.",
+        type: "typed",
+        id: "q_usb_copy",
+        prompt: "Which disk copy matches the original? Type its file name.",
+        answer: ["copyA.img", "copy a", "a", "copyA"],
+        placeholder: "File name",
+        explainRight: "Right. Copy A's SHA-256 matches the hash taken from the disk on site, so it is a perfect copy. Copy B was taken a day later from a running machine, and its hash shows it changed.",
+        explainWrong: "It is copyA.img. Its SHA-256 matches original.sha256. Copy B's hash differs because the PC kept running and changing after the incident, so it cannot be your evidence.",
         teaches: "hashing",
-        hint: "A trustworthy copy has a fingerprint identical to the original's.",
+        hint: "Run sha256sum on both copies and compare each with the hash in original.sha256.",
+        solution: { evidence: "ev_usb_box", command: `sha256sum copyA.img copyB.img | grep ${USB_HASH.slice(0, 12)}` },
       },
       {
-        type: "single",
-        id: "q_usb_b",
-        prompt: "What does Copy B's different hash tell you?",
-        options: [
-          "It differs from the original, so it is not usable as evidence",
-          "Copy B was tampered with on purpose by the client's IT team",
-          "SHA-256 mismatches happen all the time and can safely be ignored",
-          "Copy B is the better evidence, because it is newer than Copy A",
-        ],
-        answer: 0,
-        explainRight: "Right. A different hash proves the data is different, not who changed it or why. A running PC changes every minute. Copy B can guide you, but it cannot prove anything.",
-        explainWrong: "A mismatch means Copy B is not identical to the original. That is not proof of tampering, only of change. Either way, Copy B cannot be your evidence.",
-        teaches: "hashing",
-        hint: "A hash proves two things are the same. What does it prove when they differ, and what does it not?",
+        type: "typed",
+        id: "q_usb_program",
+        prompt: "Two files were recovered from the stick. Which one is really a Windows program? Type its file name.",
+        answer: ["recovered_0043.bin", "0043", "recovered_0043"],
+        placeholder: "File name",
+        explainRight: "Right. It starts with MZ, 4d 5a in hex, the signature of every Windows program, and even says it cannot be run in DOS mode. The other file starts with %PDF: a real invoice, used as cover.",
+        explainWrong: "It is recovered_0043.bin. Its first bytes are MZ (4d 5a), the signature of a Windows program. recovered_0042.bin starts with %PDF and is just the decoy invoice.",
+        teaches: "file-signatures",
+        hint: "Look at the first bytes of each file with xxd -l 32. A program and a PDF announce themselves very differently.",
+        solution: { evidence: "ev_usb_box", command: 'grep -l "DOS mode" recovered_0042.bin recovered_0043.bin' },
       },
       {
-        type: "single",
-        id: "q_usb_what",
-        prompt: "What does the timeline from Copy A show?",
-        options: [
-          "A real invoice viewer that crashed and left some junk behind",
-          "Malware from the stick that set itself to start and called out",
-          "Windows updating itself in the background after a USB insert",
-          "The office manager installing software she was not allowed to",
-        ],
-        answer: 1,
-        explainRight: "Right. It ran from the stick, added itself to startup so it survives a reboot, and connected out to 203.0.113.77 within a minute. Unplugging the stick undid none of that.",
-        explainWrong: "It is malware. Run from USB, add itself to startup, call out to 203.0.113.77: install, stay, phone home. The invoice never opened because there was no invoice.",
-        teaches: "ioc",
-        hint: "Read the three lines in the middle as one story: run, stay, call out.",
+        type: "merge",
+        id: "q_usb_clock",
+        prompt: "Set each log's clock so the merged timeline tells the true story.",
+        evidence: "ev_usb_clock",
+        explainRight: "Right. The PC logs in local time, UTC+1, and the firewall in UTC. Merged properly, the stick goes in at 07:51 UTC, the program runs a minute later and adds itself to startup, and it calls 203.0.113.77 at 07:53. It keeps calling every five minutes after the stick is pulled out, because the Run key starts it again.",
+        explainWrong: "The PC's two logs are in local time, UTC+1, so they move back an hour. The firewall already logs in UTC. Leave them all unadjusted and the program calls home an hour before the stick was plugged in, which is the tell that a clock is wrong.",
+        teaches: "time-zones",
+        hint: "Read each log's note about its own clock. And remember that an effect never comes before its cause.",
       },
       {
         type: "decision",

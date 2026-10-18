@@ -9,6 +9,7 @@ import { pickTargets } from "../src/engine/pick";
 import { runSolution } from "../src/engine/solution";
 import { rulesPass } from "../src/engine/firewall";
 import { initConsole, act, goalsMet } from "../src/engine/console";
+import { mergeTimeline, offsetsRight } from "../src/engine/timeline";
 import { answerMatches, normalizeAnswer } from "../src/engine/answer";
 import { DEPTS } from "../src/engine/types";
 import { trackFlag } from "../src/engine/state";
@@ -45,6 +46,13 @@ function allText(): string[] {
         });
       } else if (ev.kind === "siem") {
         ev.events.forEach((e) => Object.values(e).forEach(push));
+      } else if (ev.kind === "merge") {
+        push(ev.caption);
+        ev.sources.forEach((src) => {
+          push(src.name);
+          push(src.note);
+          src.events.forEach((e) => push(e.text));
+        });
       } else if (ev.kind === "console") {
         push(ev.tenant);
         ev.users.forEach((u) => {
@@ -106,6 +114,9 @@ function allText(): string[] {
         push(q.explainWrong);
       } else if (q.type === "typed") {
         q.answer.forEach(push);
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "merge") {
         push(q.explainRight);
         push(q.explainWrong);
       } else if (q.type === "console") {
@@ -310,7 +321,7 @@ describe("spot questions, hints and ATT&CK tags", () => {
       if (!q.hint) continue;
       const hint = q.hint.toLowerCase();
       const right =
-        q.type === "single" ? [q.options[q.answer]] : q.type === "multi" ? q.answer.map((i) => q.options[i]) : q.type === "typed" ? q.answer : [];
+        q.type === "single" ? [q.options[q.answer]] : q.type === "multi" ? q.answer.map((i) => q.options[i]) : q.type === "typed" ? [q.answer[0]] : [];
       for (const r of right) expect(hint.includes(r.toLowerCase()), `${q.id}: hint gives away "${r}"`).toBe(false);
     }
   });
@@ -436,6 +447,24 @@ describe("admin console cases", () => {
       expect(goalsMet(s, q.goals, ev.users), `${q.id}: solution`).toBe(true);
       expect(goalsMet(initConsole(ev.users), q.goals, ev.users), `${q.id}: untouched console already passes`).toBe(false);
       for (const g of q.goals) expect(g.label.length, q.id).toBeGreaterThan(10);
+    }
+  });
+});
+
+describe("timeline builder cases", () => {
+  const mergeQs = TICKETS.flatMap((t) => t.questions.flatMap((q) => (q.type === "merge" ? [{ t, q }] : [])));
+
+  it("needs at least one clock changed, and the true order puts cause before effect", () => {
+    for (const { t, q } of mergeQs) {
+      const ev = t.evidence.find((e) => e.id === q.evidence);
+      expect(ev?.kind, q.id).toBe("merge");
+      if (ev?.kind !== "merge") continue;
+      const untouched = Object.fromEntries(ev.sources.map((s) => [s.id, 0]));
+      expect(offsetsRight(ev.sources, untouched), `${q.id}: already right with no changes`).toBe(false);
+      const right = Object.fromEntries(ev.sources.map((s) => [s.id, s.offset]));
+      const order = mergeTimeline(ev.sources, right).map((e) => e.text);
+      const wrong = mergeTimeline(ev.sources, untouched).map((e) => e.text);
+      expect(order, `${q.id}: the wrong clocks should tell a different story`).not.toEqual(wrong);
     }
   });
 });
