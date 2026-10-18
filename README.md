@@ -99,7 +99,6 @@ src/
   audio/     the generative soundtrack and sound effects
   ui/        the app controller, evidence viewers, dialogue, interview
   content/   all writing: interviews, tickets, scenes, codex, endings
-docs/        story bible and design notes
 tests/       content house-rules and engine logic
 e2e/         a bot that plays the real game in a browser
 media/       screenshots and the demo clip
