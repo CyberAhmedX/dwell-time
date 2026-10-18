@@ -576,7 +576,9 @@ export class App {
           class: "warn-crit",
           text: hard
             ? "Hard mode. One attempt: a wrong answer and the case goes down as botched."
-            : `Critical case. You have ${maxAttempts} attempts before it goes down as botched.`,
+            : t.live
+              ? "Live incident. You are racing the clock, and a wrong submit takes time off it."
+              : `Critical case. You have ${maxAttempts} attempts before it goes down as botched.`,
         }),
       );
     }

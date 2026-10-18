@@ -1,6 +1,7 @@
 import type { Ticket } from "../engine/types";
 import { TRACK_TICKETS } from "./tracks";
 import { TEAM_TICKETS } from "./teamcases";
+import { FINALE_TICKETS } from "./finales";
 import { SIDE_TICKETS } from "./sides";
 import { schoolDnsLog } from "./logs";
 import { ATTACK_CATALOGUE } from "./attack";
@@ -968,6 +969,7 @@ const STORY_TICKETS: Ticket[] = [
     title: "Something is in the plant network",
     xp: 100,
     live: { seconds: 300 },
+    requires: ["track_soc"],
     attack: [
       { id: "T1078", name: "Valid Accounts" },
       { id: "T1021.002", name: "SMB/Windows Admin Shares" },
@@ -1125,7 +1127,7 @@ const STORY_TICKETS: Ticket[] = [
 
 // Every case in the game: the shared story, one case per career track, and the
 // optional side cases.
-export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...TEAM_TICKETS, ...SIDE_TICKETS];
+export const TICKETS: Ticket[] = [...STORY_TICKETS, ...TRACK_TICKETS, ...TEAM_TICKETS, ...FINALE_TICKETS, ...SIDE_TICKETS];
 
 export function ticketById(id: string): Ticket | undefined {
   return TICKETS.find((t) => t.id === id);

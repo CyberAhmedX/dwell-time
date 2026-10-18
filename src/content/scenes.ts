@@ -162,7 +162,7 @@ export const SCENES: Scene[] = [
           // and read the recon properly. Leave a door open or botch the recon
           // and this option is gone.
           text: "Cut it at the root: disable the HarborWatch shared credential everywhere and isolate the jump box from the OT boundary.",
-          hideIf: ["left_firewall_open", "botched_t5_plant_recon"],
+          hideIf: ["left_firewall_open", "botched_t5_plant_recon", "botched_t5_network", "botched_t5_helpdesk", "botched_t5_forensics", "botched_t5_pentest", "botched_t5_intel"],
           setFlags: [FINALE_SUCCESS],
           integrity: 2,
           reply: [

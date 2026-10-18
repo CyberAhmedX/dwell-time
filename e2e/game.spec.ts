@@ -85,6 +85,24 @@ test("each team finds its own chapter-three secret", async ({ page }) => {
   }
 });
 
+
+test("each team plays its own live finale to an ending", async ({ page }) => {
+  test.setTimeout(4 * 60_000);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  for (const track of ["network", "helpdesk", "pentest", "intel"] as const) {
+    await page.goto(GAME);
+    await page.evaluate((t) => {
+      localStorage.setItem("dwell-time.save.v1", JSON.stringify({ version: 1, playerName: "Fin", track: t, hired: true, chapter: 5, xp: 650, integrity: 4, flags: [`track_${t}`, "knows_truth", "knows_harborwatch", "evidence_chain_intact", "intro_5"], done: ["intro_5"], codex: [], interviewScore: 5, cleanCloses: 9, totalCloses: 9, botched: 0, interviewFails: 0, hintsUsed: 0, hard: false }));
+      localStorage.setItem("dwell-time.meta.v1", JSON.stringify({ version: 1, endings: [], achievements: [], codexEver: [], casesEver: [], secretsEver: [], checkpoints: {}, settings: { music: 0, effects: 0, muted: true, textScale: 1, reducedMotion: true, relaxedTimers: false } }));
+    }, track);
+    await page.reload();
+    const ending = await play(page, { name: "Fin", track });
+    expect(ending, `${track} reaches an ending`).not.toBeNull();
+  }
+  expect(errors).toEqual([]);
+});
+
 test("the chapter five finale runs live and hands out take-home files", async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto(GAME);

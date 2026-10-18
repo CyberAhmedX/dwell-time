@@ -57,7 +57,7 @@ export const CHAPTERS: ChapterPlan[] = [
     title: "Chapter Five",
     subtitle: "Storm Surge",
     intro: "s5_intro",
-    main: ["t5_plant_recon"],
+    main: ["t5_plant_recon", "t5_network", "t5_helpdesk", "t5_forensics", "t5_pentest", "t5_intel"],
     side: ["sd_keys"],
     outro: ["s5_contain", "s5_evidence"],
   },
