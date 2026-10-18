@@ -964,3 +964,40 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 .tlb-done select { pointer-events: none; opacity: 0.6; }
 .tlb-table { width: 100%; }
 .tlb-table td:last-child { overflow-wrap: anywhere; }
+
+/* Request editor */
+.req { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; }
+.req-target { margin: 0; font-size: calc(13px * var(--ts)); color: var(--amber-soft); }
+.req-input {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: max(16px, calc(13px * var(--ts)));
+  line-height: 1.5;
+  color: #cfe3d8;
+  background: #05080d;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  white-space: pre;
+  overflow-x: auto;
+}
+.req-input:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.req-status { margin: 0; font-family: var(--mono); font-size: calc(12.5px * var(--ts)); color: var(--amber-soft); }
+.req-status.good { color: var(--good); }
+.req-status.err { color: var(--rose); }
+.req-response {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: calc(12px * var(--ts));
+  line-height: 1.45;
+  color: var(--fg-dim);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

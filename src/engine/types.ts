@@ -3,6 +3,7 @@
 import type { Flow as FirewallFlow } from "./firewall";
 import type { ConsoleAction, ConsoleGoal, ConsoleIntruder, ConsoleUser } from "./console";
 import type { TimelineSource } from "./timeline";
+import type { WebApp } from "./webapp";
 
 export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
 
@@ -143,7 +144,17 @@ export interface MergeEvidence {
   sources: TimelineSource[];
 }
 
+// A request editor pointed at one fictional web app. See engine/webapp.ts.
+export interface RequestEvidence {
+  kind: "request";
+  id: string;
+  label: string;
+  app: WebApp;
+  request: string; // the raw request you start with
+}
+
 export type Evidence =
+  | RequestEvidence
   | MergeEvidence
   | ConsoleEvidence
   | FirewallEvidence
@@ -278,7 +289,19 @@ export interface MergeQuestion {
   hint?: string;
 }
 
-export type Question = MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Prove a web app's broken access control by editing and sending a request.
+export interface RequestQuestion {
+  type: "request";
+  id: string;
+  prompt: string;
+  evidence: string; // request evidence id within the same ticket
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+export type Question = RequestQuestion | MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {
