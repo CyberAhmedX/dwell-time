@@ -46,6 +46,14 @@ function allText(): string[] {
         });
       } else if (ev.kind === "siem") {
         ev.events.forEach((e) => Object.values(e).forEach(push));
+      } else if (ev.kind === "pivot") {
+        push(ev.caption);
+        push(ev.start);
+        ev.db.records.forEach((r) => {
+          push(r.domain);
+          push(r.ip);
+          push(r.note);
+        });
       } else if (ev.kind === "request") {
         push(ev.app.host);
         push(ev.request);
@@ -406,7 +414,7 @@ describe("terminal cases", () => {
     for (const { t, q } of typed) {
       if (!q.solution) continue;
       const ev = t.evidence.find((e) => e.id === q.solution!.evidence);
-      expect(ev?.kind === "terminal" || ev?.kind === "siem", `${q.id}: ${q.solution.evidence} is a terminal or a SIEM`).toBe(true);
+      expect(ev?.kind === "terminal" || ev?.kind === "siem" || ev?.kind === "pivot", `${q.id}: ${q.solution.evidence} is a runnable tool`).toBe(true);
       if (!ev) continue;
       const r = runSolution(ev, q.solution.command);
       expect(r.error, `${q.id}: ${r.out}`).toBeFalsy();

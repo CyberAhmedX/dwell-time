@@ -4,6 +4,20 @@ import { sha256 } from "../engine/sha256";
 
 const CLINIC_VPN = clinicVpnEvents();
 
+// Passive DNS for the leak-site case. The post gives only tollgate.test, but
+// that name shares an address with the crew's payment portal, so pivoting the
+// address turns one indicator into the whole set. All names and addresses are
+// fictional (reserved .test / documentation ranges).
+const TOLL_PASSIVE = {
+  records: [
+    { domain: "tollgate.test", ip: "203.0.113.90", firstSeen: "2026-02-18", lastSeen: "2026-03-14", note: "contact page in the leak post" },
+    { domain: "paywall-tollkeepers.test", ip: "203.0.113.90", firstSeen: "2026-02-20", lastSeen: "2026-03-14", note: "payment portal, not named in the post" },
+    { domain: "status-tollgate.test", ip: "203.0.113.90", firstSeen: "2026-03-01", lastSeen: "2026-03-14" },
+    { domain: "tollgate.test", ip: "198.51.100.66", firstSeen: "2026-01-10", lastSeen: "2026-02-17", note: "parked, before the campaign" },
+    { domain: "reading-portal.example", ip: "198.51.100.66", firstSeen: "2024-05-01", lastSeen: "2026-03-14", note: "a real school supplier, unrelated" },
+  ],
+};
+
 // Files on the forensic workstation for the Brightloaf USB case. Each holds one
 // byte per character, so xxd shows real headers: MZ for the program, %PDF for
 // the decoy invoice.
@@ -750,6 +764,14 @@ export const TRACK_TICKETS: Ticket[] = [
           "The payroll export was emailed to the principal last month as an attachment.",
         ],
       },
+      {
+        kind: "pivot",
+        id: "ev_leak_pivot",
+        label: "Passive DNS board",
+        caption: "Which names pointed at which addresses, and when. Search a name or an address, and click any result to pivot.",
+        start: "tollgate.test",
+        db: TOLL_PASSIVE,
+      },
     ],
     questions: [
       {
@@ -780,20 +802,16 @@ export const TRACK_TICKETS: Ticket[] = [
         hint: "Weigh the samples one by one, then read the district's statement.",
       },
       {
-        type: "single",
-        id: "q_leak_why",
-        prompt: "Why would the crew post a claim this inflated?",
-        options: [
-          "Leak sites are run by journalists who exaggerate for clicks",
-          "Pressure: a scary number makes paying feel like the safe choice",
-          "The crew confused this district with a much bigger victim elsewhere",
-          "Ransomware groups are legally required to state a size",
-        ],
-        answer: 1,
-        explainRight: "Right. The post is a sales pitch. The bigger the number and the shorter the timer, the more paying feels like the only way out. Facts are optional.",
-        explainWrong: "It is pressure. Extortion runs on fear, so crews inflate what they have and set short timers. The claim is part of the attack, not a report on it.",
-        teaches: "ransomware",
-        hint: "Ask who the post is written for, and what it wants them to do.",
+        type: "typed",
+        id: "q_leak_pivot",
+        prompt: "The post names one domain, tollgate.test. On the passive DNS board, pivot from it to the address it uses now, then name the crew's payment portal on that same address.",
+        answer: ["paywall-tollkeepers.test", "paywall-tollkeepers"],
+        placeholder: "A domain",
+        explainRight: "Right. tollgate.test resolves to 203.0.113.90 now, and two other names sit on that address, including the payment portal the post never mentions. Block the address and you cover all of their infrastructure at once, not just the one name they handed you.",
+        explainWrong: "Pivot tollgate.test to its current address, 203.0.113.90, then look at the other names on it: paywall-tollkeepers.test is the crew's payment portal. Its old parked address is a trap, since a real supplier shares it.",
+        teaches: "pivoting",
+        hint: "Click tollgate.test's current address to see every name on it. Use the address it uses now, not the old parked one, which a real supplier also sat on.",
+        solution: { evidence: "ev_leak_pivot", command: "203.0.113.90" },
       },
       {
         type: "decision",

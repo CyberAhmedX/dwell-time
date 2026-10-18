@@ -505,7 +505,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0, pivot: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -586,6 +586,7 @@ export class App {
         used.console ? `${used.console} admin action${used.console === 1 ? "" : "s"}` : "",
         used.merge ? `${used.merge} clock change${used.merge === 1 ? "" : "s"}` : "",
         used.request ? `${used.request} request${used.request === 1 ? "" : "s"}` : "",
+        used.pivot ? `${used.pivot} lookup${used.pivot === 1 ? "" : "s"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
