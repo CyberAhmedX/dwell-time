@@ -34,11 +34,16 @@ You are the newest hire at Lanternhouse Security, a small firm keeping a rainy h
 | ![Chapter one desk](media/desk-chapter1.png) | ![Chapter five, the storm](media/desk-storm.png) |
 | **Chapter One: Fair Weather** | **Chapter Five: Storm Surge** |
 
+| Do the job, not a quiz about it |
+| :---: |
+| ![Searching a SIEM for the password spray](media/tool-siem.png) |
+| **Real tools: a SIEM, a terminal, a firewall, a request editor and more** |
+
 The office darkens with the story: cozy and sunlit at first, then rain, then a storm blackout lit by emergency red. Lighting, weather, and the soundtrack all shift per chapter.
 
 ## What makes it tick
 
-- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Pass one to get hired, and your team gives you a case of its own in chapter two. The rest of the story is shared.
+- **Six job interviews**, one per team: SOC, Network, Help Desk, Forensics, Pentest, Threat Intel. Each draws five questions from a larger pool, so a retry is a fresh interview. Pass one to get hired, and your team gives you a case of its own in chapter two. The rest of the story is shared.
 - **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant.
 - **A side case in every chapter**, from a cat on the keyboard to a backup audit, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **A real terminal**: dig through case files with `grep`, `cut`, `sort | uniq -c`, `sha256sum` and pipes, then type what you found. Any command that finds it counts.
@@ -48,14 +53,24 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **A timeline builder**: merge logs stamped by different clocks onto UTC. Get a time zone wrong and the malware calls home before the USB stick was plugged in. Plus `xxd` in the terminal, to read a file's magic bytes.
 - **A request editor**: edit a request to a fictional booking site, send it, and read the reply. Change the booking id to prove a broken-access-control bug yourself, the way a pentester would.
 - **A pivot board**: follow a domain to its address and on to the rest of an actor's infrastructure through passive DNS, so a block list covers all of it, not just the one name you were handed.
+- **Raw email headers**: read a message's full source, work down the Received chain to where it really came from, and see why an SPF pass on the wrong domain means nothing.
+- **A scope checker**: before you touch an address, check it against the engagement letter, with the subnet maths done for you. Exclusions win, and anything not listed is out.
+- **A CVSS calculator**: rate a finding across the eight v3.1 metrics and get the same score the official calculator gives.
+- **Indicators and defanging**: pull the indicators out of a report, defang them so nobody clicks one, and hand over a block list that covers the actor without catching the innocent bystander on the same host.
+- **ATT&CK mapping**: look techniques up in an offline matrix, then map what the attacker did to the real technique IDs yourself.
+- **Write a detection rule**: build a SIEM rule and test it against a replay of real attacks and false alarms. Catch the attack, stay quiet on everything else.
+- **Write the incident report**: put it in your own words, checked for the root cause, what acted and from where, honest attribution, and a concrete fix.
+- **A live finale**: chapter five runs against a clock. Relaxed timers doubles it, and the choices you made earlier can shorten it.
+- **Take-home files**: download the block list and detection rule from a solved case, to keep or to adapt.
 - **Click the evidence**: some questions ask you to point at the exact log row, email header, timeline event or process that proves it, the way an analyst would.
 - **Hints that cost XP** when you are stuck, so guessing is never cheaper than reading.
 - **MITRE ATT&CK tags** on each solved case, naming the real technique it covered (for example T1566 Phishing).
 - **XP and ranks**: climb from Probationary Analyst to Lead Analyst as you close cases.
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
-- **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood.
-- **Achievements** for how you played, like keeping the evidence chain intact or closing every case right on the first try.
-- **Settings** for music and effects volume, text size, and reduced motion.
+- **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood. Download a share card of how your run ended.
+- **Hard mode and practice mode**: take every case with no hints and one attempt, or replay any case you have closed without touching your run.
+- **Achievements** for how you played, like keeping the evidence chain intact, finishing on hard mode, or closing every case right on the first try.
+- **Settings** for music and effects volume, text size, reduced motion, and relaxed timers.
 - **Export and import saves** as a file or a short code, to back up a run or carry it to another browser or device.
 
 ## Everything here is fictional and safe
