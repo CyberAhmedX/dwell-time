@@ -164,7 +164,47 @@ export interface PivotEvidence {
   db: PivotDb;
 }
 
+// Raw text you read line by line, like an email's full source with every
+// Received header. Spot questions can point at any line.
+export interface RawEvidence {
+  kind: "raw";
+  id: string;
+  label: string;
+  tag: string; // what the viewer is called, like EMAIL SOURCE
+  caption?: string;
+  text: string;
+}
+
+// An engagement's scope, with a checker for addresses and ranges. See engine/scope.ts.
+export interface ScopeEvidence {
+  kind: "scope";
+  id: string;
+  label: string;
+  inScope: string[]; // addresses or CIDR ranges
+  outOfScope: string[];
+  note?: string;
+}
+
+// One ATT&CK technique in the offline lookup.
+export interface AttackTechnique {
+  id: string;
+  name: string;
+  tactic: string;
+  summary: string;
+}
+
+// A searchable slice of MITRE ATT&CK, to look technique IDs up in.
+export interface AttackDbEvidence {
+  kind: "attackdb";
+  id: string;
+  label: string;
+  techniques: AttackTechnique[];
+}
+
 export type Evidence =
+  | AttackDbEvidence
+  | ScopeEvidence
+  | RawEvidence
   | PivotEvidence
   | RequestEvidence
   | MergeEvidence
@@ -313,7 +353,57 @@ export interface RequestQuestion {
   hint?: string;
 }
 
-export type Question = RequestQuestion | MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Tick which targets the engagement allows you to test, using the scope checker.
+export interface ScopeQuestion {
+  type: "scope";
+  id: string;
+  prompt: string;
+  evidence: string; // scope evidence id within the same ticket
+  targets: { address: string; what: string }[]; // the right answer comes from engine/scope.ts
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+// Rate a finding with the CVSS v3.1 calculator.
+export interface CvssQuestion {
+  type: "cvss";
+  id: string;
+  prompt: string;
+  vector: string; // the expected base vector, like AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N
+  why: Partial<Record<"AV" | "AC" | "PR" | "UI" | "S" | "C" | "I" | "A", string>>; // why each metric has its value, shown after
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+// Paste a block list: every indicator that belongs on it, defanged.
+export interface IocQuestion {
+  type: "iocs";
+  id: string;
+  prompt: string;
+  answer: string[]; // the indicators, written normally; compared after refanging
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+// Map behaviours you saw to ATT&CK technique IDs.
+export interface MapQuestion {
+  type: "attack-map";
+  id: string;
+  prompt: string;
+  items: { behavior: string; answer: string[] }[]; // accepted IDs per behaviour
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+export type Question = MapQuestion | IocQuestion | CvssQuestion | ScopeQuestion | RequestQuestion | MergeQuestion | ConsoleQuestion | RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {

@@ -4,6 +4,9 @@ import { DEPT_LABEL } from "../src/engine/types";
 import { TICKETS } from "../src/content/tickets";
 import { SCENES } from "../src/content/scenes";
 import { interviewFor } from "../src/content/interviews";
+import { checkScope } from "../src/engine/scope";
+import { parseVector, METRICS } from "../src/engine/cvss";
+import { defang } from "../src/engine/ioc";
 
 // Plays Dwell Time through the real UI, answering from the game's own content.
 // Every graded answer is right on the first submit and no hint is bought; the
@@ -222,6 +225,34 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
         } else if (a.type === "block" || a.type === "delete-user") throw new Error("the bot never blocks or deletes");
         else await adm.locator(`[data-act="${a.type}"]`).click();
       }
+      return;
+    }
+    case "scope": {
+      // check each target in the scope checker first, the way a tester would
+      const sc = page.locator(`[data-ev="${q.evidence}"]`);
+      const ev = TICKETS.flatMap((t) => t.evidence).find((e) => e.id === q.evidence);
+      if (ev?.kind !== "scope") throw new Error(`${q.evidence} is not a scope checker`);
+      for (const t of q.targets) {
+        await sc.locator(".sc-input").fill(t.address);
+        await sc.locator(".sc-input").press("Enter");
+        const inScope = checkScope(ev, t.address).inScope;
+        await expect(sc.locator(".sc-line").first()).toContainText(inScope ? "IN SCOPE" : "OUT OF SCOPE");
+        if (inScope) await block.locator(".opt", { hasText: t.address }).click();
+      }
+      return;
+    }
+    case "cvss": {
+      const v = parseVector(q.vector);
+      for (const m of METRICS) await block.locator(`.seg-btn[data-metric="${m}"][data-value="${v[m]}"]`).click();
+      await expect(block.locator(".cvss-score")).toContainText(q.vector);
+      return;
+    }
+    case "iocs":
+      await block.locator(".ioc-input").fill(q.answer.map(defang).join("\n"));
+      return;
+    case "attack-map": {
+      const inputs = block.locator(".map-input");
+      for (let i = 0; i < q.items.length; i++) await inputs.nth(i).fill(q.items[i].answer[0]);
       return;
     }
     case "spot":

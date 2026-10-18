@@ -59,6 +59,7 @@ import { CODEX } from "../content/codex";
 import { el, mount, clear, shuffled } from "./dom";
 import { renderEvidence } from "./evidence";
 import { drawShareCard, shareFileName } from "./sharecard";
+import { type QuestionControl, markBlock, scrollMotion, scopeQuestion, cvssQuestion, iocQuestion, mapQuestion } from "./controls";
 
 export class App {
   private root: HTMLElement;
@@ -539,7 +540,7 @@ export class App {
     const qPanel = el("div", { class: "q-panel" });
     const ctx: QuestionContext = { ticket: t, evPanel, review, disarm: null };
     // count commands and searches, for the note on how directly you got there
-    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0, pivot: 0 };
+    const used = { terminal: 0, siem: 0, firewall: 0, console: 0, merge: 0, request: 0, pivot: 0, scope: 0, attackdb: 0 };
     evPanel.addEventListener("tool-command", (e) => used[(e as CustomEvent<{ kind: keyof typeof used }>).detail.kind]++);
     const controls: QuestionControl[] = t.questions.map((q) => this.buildQuestion(q, qPanel, ctx));
 
@@ -636,6 +637,8 @@ export class App {
         used.merge ? `${used.merge} clock change${used.merge === 1 ? "" : "s"}` : "",
         used.request ? `${used.request} request${used.request === 1 ? "" : "s"}` : "",
         used.pivot ? `${used.pivot} lookup${used.pivot === 1 ? "" : "s"}` : "",
+        used.scope ? `${used.scope} scope check${used.scope === 1 ? "" : "s"}` : "",
+        used.attackdb ? `${used.attackdb} ATT&CK search${used.attackdb === 1 ? "" : "es"}` : "",
       ].filter(Boolean);
       if (ran.length) feedback.append(el("p", { class: "muted", text: `You ran ${ran.join(" and ")}.` }));
       if (t.attack?.length) feedback.append(attackTags(t));
@@ -727,6 +730,14 @@ export class App {
     if (q.type === "console") return this.consoleQuestion(q, wrap, ctx);
     if (q.type === "merge") return this.mergeQuestion(q, wrap, ctx);
     if (q.type === "request") return this.requestQuestion(q, wrap, ctx);
+    if (q.type === "cvss") return cvssQuestion(q, wrap);
+    if (q.type === "iocs") return iocQuestion(q, wrap);
+    if (q.type === "attack-map") return mapQuestion(q, wrap);
+    if (q.type === "scope") {
+      const ev = ctx.ticket.evidence.find((e) => e.id === q.evidence);
+      if (ev?.kind !== "scope") throw new Error(`${q.id}: ${q.evidence} is not a scope checker`);
+      return scopeQuestion(q, wrap, ev);
+    }
 
     // options appear in a new random order every time, so position gives nothing away
     if (q.type === "single") {
@@ -1876,28 +1887,6 @@ export class App {
 
 // ----- helpers -----
 
-function markBlock(wrap: HTMLElement, right: boolean): void {
-  wrap.classList.toggle("q-right", right);
-  wrap.classList.toggle("q-wrong", !right);
-  let note = wrap.querySelector<HTMLElement>(".q-mark");
-  if (!note) {
-    note = el("p", { class: "q-mark" });
-    wrap.insertBefore(note, wrap.children[1] ?? null);
-    // the mark goes away as soon as the answer is changed
-    wrap.addEventListener("click", (e) => {
-      if ((e.target as HTMLElement).closest("button")) {
-        wrap.classList.remove("q-right", "q-wrong");
-        note?.remove();
-      }
-    }, { once: true });
-  }
-  note.textContent = right ? "Correct" : "Not right yet";
-}
-
-function scrollMotion(): ScrollBehavior {
-  return document.documentElement.classList.contains("reduce-motion") ? "auto" : "smooth";
-}
-
 function stat(label: string, value: string): HTMLElement {
   return el("div", { class: "stat" }, [
     el("span", { class: "stat-k", text: label }),
@@ -1940,16 +1929,6 @@ function attackTags(t: Ticket): HTMLElement {
     el("span", { class: "attack-k", text: "MITRE ATT&CK" }),
     ...(t.attack ?? []).map((a) => el("span", { class: "attack-tag", text: `${a.id} ${a.name}` })),
   ]);
-}
-
-interface QuestionControl {
-  ready(): boolean;
-  correct(): boolean;
-  reveal(): void;
-  /** After a wrong submit: say whether this answer is right, without showing the right option. */
-  mark(): void;
-  apply(save: SaveData): void;
-  focus(): void;
 }
 
 const TRACK_PITCH: Record<Dept, string> = {

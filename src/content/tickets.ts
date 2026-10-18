@@ -2,8 +2,43 @@ import type { Ticket } from "../engine/types";
 import { TRACK_TICKETS } from "./tracks";
 import { SIDE_TICKETS } from "./sides";
 import { schoolDnsLog } from "./logs";
+import { ATTACK_CATALOGUE } from "./attack";
 
 const SCHOOL_DNS = schoolDnsLog();
+
+// The full source of the Brightloaf phishing email, as the mail server saved
+// it. Received headers stack up newest first, so the hop Brightloaf's own
+// server recorded is the one to trust; anything below it was written by the
+// sender and can say anything.
+const PHISH_SOURCE = [
+  "Return-Path: <bounce@mailbox-portal.test>",
+  "Received: from mx1.brightloaf.example (mx1.brightloaf.example [198.51.100.25])",
+  "\tby mail.brightloaf.example with ESMTPS id 4F2A9C01",
+  "\tfor <m.okonkwo@brightloaf.example>; Mon, 9 Mar 2026 08:14:09 +0000",
+  "Received: from mail.mailbox-portal.test (mail.mailbox-portal.test [203.0.113.77])",
+  "\tby mx1.brightloaf.example with ESMTP id 9B77E2",
+  "\tfor <m.okonkwo@brightloaf.example>; Mon, 9 Mar 2026 08:14:07 +0000",
+  "Received: from [10.8.0.6] (unknown [10.8.0.6])",
+  "\tby mail.mailbox-portal.test with ESMTPSA id 31C0",
+  "\tfor <m.okonkwo@brightloaf.example>; Mon, 9 Mar 2026 08:14:05 +0000",
+  "Authentication-Results: mx1.brightloaf.example;",
+  "\tspf=pass (mailbox-portal.test designates 203.0.113.77 as a permitted sender) smtp.mailfrom=mailbox-portal.test;",
+  "\tdkim=none (message not signed);",
+  "\tdmarc=fail (p=none) header.from=brightloaf-payroll.example",
+  "From: Gregor Brightloaf <gregor.brightloaf@brightloaf-payroll.example>",
+  "Reply-To: gregor.pay@mailbox-portal.test",
+  "To: Office Manager <m.okonkwo@brightloaf.example>",
+  "Subject: URGENT need this done before I board",
+  "Date: Mon, 9 Mar 2026 08:14:02 +0000",
+  "Message-ID: <a81f3c@mailbox-portal.test>",
+].join("\n");
+
+/** The spot key of the first line of raw text containing needle. */
+function lineKey(text: string, needle: string): string {
+  const n = text.split("\n").findIndex((l) => l.includes(needle));
+  if (n < 0) throw new Error(`no line with ${needle}`);
+  return `l${n}`;
+}
 
 // Investigation tickets. Every address is from a documentation range
 // (192.0.2.x, 198.51.100.x, 203.0.113.x) or a private range, every domain uses
@@ -48,6 +83,14 @@ const STORY_TICKETS: Ticket[] = [
         ],
       },
       {
+        kind: "raw",
+        id: "ev_phish_source",
+        label: "Full message source",
+        tag: "EMAIL SOURCE",
+        caption: "Every header, as Brightloaf's mail server saved it. Received lines stack newest first.",
+        text: PHISH_SOURCE,
+      },
+      {
         kind: "note",
         id: "ev_phish_realaddr",
         label: "Address book check",
@@ -70,6 +113,28 @@ const STORY_TICKETS: Ticket[] = [
         explainWrong: "Look at the Reply-To header. It sends every reply to mailbox-portal.test, a domain that has nothing to do with Brightloaf.",
         teaches: "phishing",
         hint: "A reply does not always go back to the From address. One header decides where it lands.",
+      },
+      {
+        type: "typed",
+        id: "q_phish_origin",
+        prompt: "Read the Received headers. Which address actually handed this email to Brightloaf's mail server?",
+        answer: ["203.0.113.77"],
+        placeholder: "IP address",
+        explainRight: "Right. Brightloaf's own server, mx1, recorded the connection from mail.mailbox-portal.test at 203.0.113.77. Lines below that one were written by the sender's side and could say anything; the 10.8.0.6 one is a private address that tells you nothing.",
+        explainWrong: "It is 203.0.113.77. Received lines stack newest first. Trust the first one written by a server you control, mx1.brightloaf.example, and read who connected to it. Everything below was written by the sender.",
+        teaches: "email-headers",
+        hint: "Work down from the top until you reach the Received line written by a Brightloaf server that says who it received the mail from.",
+      },
+      {
+        type: "spot",
+        id: "q_phish_dmarc",
+        prompt: "Click the line that shows the message failed the check for the domain in its From address.",
+        evidence: "ev_phish_source",
+        answer: [lineKey(PHISH_SOURCE, "dmarc=")],
+        explainRight: "Right. SPF passed, but only for mailbox-portal.test, the bounce domain. DMARC checks the domain people actually see in From, and nothing about this message lines up with it. A pass on the wrong domain proves nothing.",
+        explainWrong: "It is the dmarc=fail line. SPF did pass, but for mailbox-portal.test, not the From domain. DMARC is the check that ties authentication to the From address people see.",
+        teaches: "email-headers",
+        hint: "SPF can pass for a domain nobody sees. Find the result that is about header.from.",
       },
       {
         type: "multi",
@@ -615,6 +680,19 @@ const STORY_TICKETS: Ticket[] = [
         ],
       },
       {
+        kind: "note",
+        id: "ev_pentest_facts",
+        label: "Finding notes",
+        title: "What you know about the booking bug",
+        lines: [
+          "Reached over the internet, with an ordinary browser. No special timing or setup needed.",
+          "Needs a guest session, which any visitor gets by making a free booking.",
+          "Nobody else has to click or do anything.",
+          "Only the booking site itself is affected.",
+          "Shows other people's names, contact details and berth times. Nothing can be changed, and the site keeps running.",
+        ],
+      },
+      {
         kind: "request",
         id: "ev_pentest_req",
         label: "Request editor: booking site (in scope)",
@@ -677,6 +755,26 @@ const STORY_TICKETS: Ticket[] = [
         hint: "You did not steal a login or inject anything. The app just did not check ownership.",
       },
       {
+        type: "cvss",
+        id: "q_pt_cvss",
+        prompt: "Rate the booking bug with CVSS v3.1 for the report. Use the finding notes.",
+        vector: "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+        why: {
+          AV: "Anyone on the internet can reach it.",
+          AC: "Nothing special has to line up; change a number and send.",
+          PR: "It needs a guest session, so some access, though anyone can get one.",
+          UI: "No victim has to click anything.",
+          S: "Only the booking site is affected.",
+          C: "Other people's contact details leak, but nothing more sensitive.",
+          I: "Nothing can be changed.",
+          A: "The site keeps running.",
+        },
+        explainRight: "Right: 4.3, Medium. Easy to reach and easy to do, but it needs a session and only leaks contact details, so it is not a critical. Score the flaw as it is, then explain in plain words why it still matters to the people whose details leak.",
+        explainWrong: "It rates AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N, 4.3 Medium. The guest session makes privileges Low, and contact details leaking without anything changing is Low confidentiality, no integrity and no availability impact.",
+        teaches: "cvss",
+        hint: "Take the finding notes one line at a time. Each line answers one or two of the calculator's questions.",
+      },
+      {
         type: "decision",
         id: "q_pt_scope",
         prompt: "While testing, you notice you could probably reach the crane control network too. A teammate says 'they'd thank us if we proved it'. What do you do?",
@@ -733,6 +831,12 @@ const STORY_TICKETS: Ticket[] = [
         ],
       },
       {
+        kind: "attackdb",
+        id: "ev_intel_attack",
+        label: "ATT&CK lookup",
+        techniques: ATTACK_CATALOGUE,
+      },
+      {
         kind: "chat",
         id: "ev_intel_chat",
         label: "Juno's working notes",
@@ -771,6 +875,21 @@ const STORY_TICKETS: Ticket[] = [
         explainWrong: "The address, the domain, and the shared credential are real links. 'Same town' is not evidence, it is just geography in a town this size.",
         teaches: "ioc",
         hint: "For each option, ask: is this a technical trace, or just a fact about the town?",
+      },
+      {
+        type: "attack-map",
+        id: "q_intel_map",
+        prompt: "Juno wants the wall in a shared language. Map each thing BRACKISH did to its ATT&CK technique ID.",
+        items: [
+          { behavior: "Signed in to client systems with the never-rotated HarborWatch admin password", answer: ["T1078"] },
+          { behavior: "Made a new account, svc_tidewatch, on the clinic server", answer: ["T1136", "T1136.001", "T1136.002"] },
+          { behavior: "Added a mailbox rule at Brightloaf that sends invoice mail to an outside address", answer: ["T1114.003", "T1114"] },
+          { behavior: "Sent the bakery a fake urgent email in the owner's name", answer: ["T1566", "T1656"] },
+        ],
+        explainRight: "Right. Valid Accounts, Create Account, Email Forwarding Rule, and Phishing. Written this way, anyone reading the wall, at Lanternhouse or anywhere else, knows exactly what was done.",
+        explainWrong: "They are T1078 Valid Accounts, T1136 Create Account, T1114.003 Email Forwarding Rule, and T1566 Phishing. Search the lookup for a word from each behaviour, like account, mailbox or email.",
+        teaches: "attack",
+        hint: "Search the lookup with one plain word from each line, like password, account or rule, and read the summaries.",
       },
       {
         type: "single",

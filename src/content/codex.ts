@@ -231,6 +231,35 @@ export const CODEX: CodexEntry[] = [
     ],
   },
   {
+    id: "email-headers",
+    term: "Reading email headers",
+    dept: "helpdesk",
+    body: [
+      "Every mail server that handles a message adds a Received line on top of the ones already there, so they read newest first. Only the lines added by servers you control can be trusted; anything older was written by the sender and can be faked.",
+      "The first Received line your own server wrote names the machine that connected to it. That address is where the message really came from.",
+      "SPF says whether a server may send for a domain, DKIM signs the message, and DMARC checks that one of them lines up with the domain in the From address people actually see. An SPF pass for some other domain proves nothing.",
+    ],
+  },
+  {
+    id: "cvss",
+    term: "CVSS scoring",
+    dept: "pentest",
+    body: [
+      "The Common Vulnerability Scoring System rates how severe a flaw is, from 0.0 to 10.0, by answering eight questions about it: how it is reached, how hard it is, what access it needs, whether a victim must act, whether it reaches beyond the flawed system, and what it does to confidentiality, integrity and availability.",
+      "The answers make a vector like AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N, which anyone can re-check. 0.1 to 3.9 is Low, 4.0 to 6.9 Medium, 7.0 to 8.9 High, and 9.0 and above Critical.",
+      "Score the flaw as it is, not as the client would like it to read. A base score describes the flaw itself; how urgent it is for this client is a separate conversation.",
+    ],
+  },
+  {
+    id: "defanging",
+    term: "Defanging indicators",
+    dept: "intel",
+    body: [
+      "A report full of live domains and links is a hazard: a mail client or chat app turns them into links, and someone clicks one. Defanging breaks them on purpose, so evil.example becomes evil[.]example and http becomes hxxp.",
+      "A block list should hold everything that belongs to the actor and nothing that does not. Leave out shared hosting and real businesses that happen to sit nearby, or the block breaks something innocent.",
+    ],
+  },
+  {
     id: "attack",
     term: "MITRE ATT&CK",
     dept: "general",

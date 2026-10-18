@@ -7,6 +7,9 @@ import { consoleView } from "./console";
 import { mergeView } from "./merge";
 import { requestView } from "./request";
 import { pivotView } from "./pivot";
+import { scopeView } from "./scope";
+import { attackDbView } from "./attackdb";
+import { rawLines } from "../engine/pick";
 
 // Render each evidence kind into its own little viewer. These are the "tools"
 // the analyst reads: an email client, a log table, a chat, a flow summary, a
@@ -42,6 +45,12 @@ function viewFor(ev: Evidence, opts: EvidenceOptions): HTMLElement {
       return shell(ev.label, "REQUEST EDITOR", requestView(ev));
     case "pivot":
       return shell(ev.label, "PIVOT BOARD", pivotView(ev));
+    case "scope":
+      return shell(ev.label, "SCOPE CHECKER", scopeView(ev));
+    case "attackdb":
+      return shell(ev.label, "ATT&CK", attackDbView(ev));
+    case "raw":
+      return rawView(ev);
     case "email":
       return emailView(ev);
     case "log":
@@ -187,6 +196,14 @@ function timelineView(ev: Extract<Evidence, { kind: "timeline" }>, opts: Evidenc
     ),
   );
   return shell(ev.label, "TIMELINE", body);
+}
+
+function rawView(ev: Extract<Evidence, { kind: "raw" }>): HTMLElement {
+  const body = el("div", { class: "raw" }, [
+    ev.caption ? el("div", { class: "cap", text: ev.caption }) : el("span"),
+    el("div", { class: "raw-text" }, rawLines(ev.text).map((l) => el("div", { class: "raw-line", text: l.text, "data-pick": `l${l.n}` }))),
+  ]);
+  return shell(ev.label, ev.tag, body);
 }
 
 function noteView(ev: Extract<Evidence, { kind: "note" }>): HTMLElement {
