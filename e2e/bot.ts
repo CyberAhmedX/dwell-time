@@ -155,11 +155,12 @@ async function answer(page: Page, block: Locator, q: Question, plan: Plan): Prom
       // do it the way a player would: run the command, read the output, type the answer
       if (q.solution) {
         const tool = page.locator(`[data-ev="${q.solution.evidence}"]`);
+        const pivot = (await tool.locator(".pv-input").count()) > 0;
         const siem = (await tool.locator(".siem-input").count()) > 0;
-        const box = tool.locator(siem ? ".siem-input" : ".term-input");
+        const box = tool.locator(pivot ? ".pv-input" : siem ? ".siem-input" : ".term-input");
         await box.fill(q.solution.command);
         await box.press("Enter");
-        await expect(tool.locator(siem ? ".siem-results" : ".term-out")).toContainText(q.answer[0]);
+        await expect(tool.locator(pivot ? ".pv-results" : siem ? ".siem-results" : ".term-out")).toContainText(q.answer[0]);
       }
       await block.locator(".typed-input").fill(q.answer[0]);
       return;

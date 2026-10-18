@@ -221,6 +221,16 @@ export const CODEX: CodexEntry[] = [
     ],
   },
   {
+    id: "pivoting",
+    term: "Pivoting (infrastructure tracking)",
+    dept: "intel",
+    body: [
+      "One indicator is rarely alone. Pivoting is turning a known name or address into the rest of an actor's infrastructure, so it can all be blocked at once instead of one piece at a time.",
+      "Passive DNS keeps a history of which names pointed at which addresses. From a domain you find its address, and from an address you find the other domains that have used it.",
+      "Mind shared hosting and old records: an address a name used last year may also belong to something unrelated today. Pivot on current data, and confirm before you block.",
+    ],
+  },
+  {
     id: "attack",
     term: "MITRE ATT&CK",
     dept: "general",

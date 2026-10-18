@@ -6,6 +6,7 @@ import { firewallView } from "./firewall";
 import { consoleView } from "./console";
 import { mergeView } from "./merge";
 import { requestView } from "./request";
+import { pivotView } from "./pivot";
 
 // Render each evidence kind into its own little viewer. These are the "tools"
 // the analyst reads: an email client, a log table, a chat, a flow summary, a
@@ -39,6 +40,8 @@ function viewFor(ev: Evidence, opts: EvidenceOptions): HTMLElement {
       return shell(ev.label, "TIMELINE BUILDER", mergeView(ev));
     case "request":
       return shell(ev.label, "REQUEST EDITOR", requestView(ev));
+    case "pivot":
+      return shell(ev.label, "PIVOT BOARD", pivotView(ev));
     case "email":
       return emailView(ev);
     case "log":

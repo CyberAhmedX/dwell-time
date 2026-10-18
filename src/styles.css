@@ -1001,3 +1001,49 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Pivot board */
+.pv { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; }
+.pv-caption { margin: 0; font-size: calc(13px * var(--ts)); color: var(--fg-dim); }
+.pv-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: max(16px, calc(13px * var(--ts)));
+  color: var(--fg);
+  background: #05080d;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.pv-input:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.pv-trail { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pv-crumb {
+  font-family: var(--mono);
+  font-size: calc(11.5px * var(--ts));
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+  padding: 2px 9px;
+  cursor: pointer;
+}
+.pv-crumb:hover { color: var(--fg); border-color: var(--teal); }
+.pv-crumb:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+.pv-status { margin: 0; font-family: var(--mono); font-size: calc(12.5px * var(--ts)); color: var(--fg-dim); }
+.pv-results .log-scroll { max-height: 320px; }
+.pv-table td { white-space: normal; vertical-align: top; }
+.pv-table .pv-dates { white-space: nowrap; color: var(--muted); }
+.pv-link {
+  font-family: var(--mono);
+  font-size: calc(12.5px * var(--ts));
+  color: var(--teal);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  word-break: break-all;
+}
+.pv-link:hover { text-decoration: underline; }
+.pv-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }

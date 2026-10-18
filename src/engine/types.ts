@@ -4,6 +4,7 @@ import type { Flow as FirewallFlow } from "./firewall";
 import type { ConsoleAction, ConsoleGoal, ConsoleIntruder, ConsoleUser } from "./console";
 import type { TimelineSource } from "./timeline";
 import type { WebApp } from "./webapp";
+import type { PivotDb } from "./pivot";
 
 export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
 
@@ -153,7 +154,18 @@ export interface RequestEvidence {
   request: string; // the raw request you start with
 }
 
+// A passive DNS board you can search, to map out infrastructure. See engine/pivot.ts.
+export interface PivotEvidence {
+  kind: "pivot";
+  id: string;
+  label: string;
+  caption?: string;
+  start: string; // the name the case starts you on
+  db: PivotDb;
+}
+
 export type Evidence =
+  | PivotEvidence
   | RequestEvidence
   | MergeEvidence
   | ConsoleEvidence
