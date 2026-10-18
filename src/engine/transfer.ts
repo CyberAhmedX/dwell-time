@@ -99,6 +99,7 @@ function cleanSave(x: unknown): SaveData | null {
   s.botched = count(x.botched);
   s.interviewFails = count(x.interviewFails);
   s.hintsUsed = count(x.hintsUsed);
+  s.hard = x.hard === true;
   // a hired run with no track or no chapter makes no sense; start that run over
   if (s.hired && (!s.track || s.chapter === 0)) return null;
   return s;
@@ -110,6 +111,7 @@ function cleanMeta(x: unknown): MetaData {
   m.endings = ids(x.endings);
   m.achievements = ids(x.achievements);
   m.codexEver = ids(x.codexEver);
+  m.casesEver = ids(x.casesEver);
   if (isObj(x.checkpoints)) {
     for (const [k, v] of Object.entries(x.checkpoints)) {
       const ch = Number(k);

@@ -242,26 +242,54 @@ export class AudioEngine {
     const t = this.now();
     [523, 659, 784, 1047].forEach((f, i) => this.blip(f, t + i * 0.1, 0.18, 0.09, "triangle"));
   }
-  thunder(): void {
+  /** Thunder after a lightning strike. Closer storms crack first and roll louder. */
+  thunder(strength = 1): void {
     if (!this.ac || this.muted) return;
     const t = this.now();
-    const len = 1.2 * this.ac.sampleRate;
+    const k = Math.max(0.2, Math.min(1, strength));
+    const dur = 1.4 + (1 - k) * 1.2;
+    const len = Math.floor(dur * this.ac.sampleRate);
     const buf = this.ac.createBuffer(1, len, this.ac.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    // brown-ish noise with a slow wobble, so it rolls instead of hissing
+    let last = 0;
+    const rate = (3 + Math.random() * 4) * 2 * Math.PI;
+    for (let i = 0; i < len; i++) {
+      last = (last + (Math.random() * 2 - 1) * 0.08) * 0.995;
+      const wobble = 0.6 + 0.4 * Math.sin((i / this.ac.sampleRate) * rate);
+      d[i] = last * 6 * wobble * (1 - i / len);
+    }
     const src = this.ac.createBufferSource();
     src.buffer = buf;
     const f = this.ac.createBiquadFilter();
     f.type = "lowpass";
-    f.frequency.value = 220;
+    f.frequency.value = 160 + k * 160;
     const g = this.ac.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.3, t + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+    g.gain.exponentialRampToValueAtTime(0.35 * k, t + 0.08 + (1 - k) * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f);
     f.connect(g);
     g.connect(this.sfxGain);
     src.start(t);
+    // a near strike starts with a sharp crack
+    if (k > 0.7) {
+      const crack = this.ac.createBufferSource();
+      const cl = Math.floor(0.25 * this.ac.sampleRate);
+      const cb = this.ac.createBuffer(1, cl, this.ac.sampleRate);
+      const cd = cb.getChannelData(0);
+      for (let i = 0; i < cl; i++) cd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / cl, 3);
+      crack.buffer = cb;
+      const hf = this.ac.createBiquadFilter();
+      hf.type = "highpass";
+      hf.frequency.value = 900;
+      const cg = this.ac.createGain();
+      cg.gain.value = 0.12 * k;
+      crack.connect(hf);
+      hf.connect(cg);
+      cg.connect(this.sfxGain);
+      crack.start(t);
+    }
   }
 }
 

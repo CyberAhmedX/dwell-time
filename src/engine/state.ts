@@ -17,6 +17,7 @@ export interface SaveData {
   botched: number; // critical cases that failed and were force-closed
   interviewFails: number; // rejected interviews before being hired
   hintsUsed: number; // hints bought across the run
+  hard: boolean; // hard mode: no hints, and every case gets one attempt
 }
 
 // Conduct tiers derived from the hidden integrity score. Ethical choices move
@@ -74,6 +75,7 @@ export function freshSave(): SaveData {
     botched: 0,
     interviewFails: 0,
     hintsUsed: 0,
+    hard: false,
   };
 }
 

@@ -27,6 +27,8 @@ export class OfficeScene {
   private scale = 1;
   private offX = 0;
   private offY = 0;
+  /** Called on every lightning strike, so the soundtrack can answer it with thunder. */
+  onStrike: (() => void) | null = null;
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext("2d");
@@ -88,6 +90,17 @@ export class OfficeScene {
 
   private update(dt: number): void {
     this.t += dt;
+    // Strikes keep their rhythm with reduced motion on, so the thunder still
+    // rolls in; only the flash on screen is left out.
+    if (this.mood.lightning) {
+      this.nextBolt -= dt;
+      if (this.nextBolt <= 0) {
+        if (!this.reduced) this.flash = 1;
+        this.nextBolt = 4 + Math.random() * 7;
+        this.onStrike?.();
+      }
+    }
+    if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 3);
     if (this.reduced) return;
     const rain = this.mood.rain;
     const active = Math.floor(this.drops.length * rain);
@@ -97,14 +110,6 @@ export class OfficeScene {
       d.x -= d.spd * 0.25 * dt;
       if (d.y > VH + 10) Object.assign(d, this.newDrop());
     }
-    if (this.mood.lightning) {
-      this.nextBolt -= dt;
-      if (this.nextBolt <= 0) {
-        this.flash = 1;
-        this.nextBolt = 4 + Math.random() * 7;
-      }
-    }
-    if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 3);
   }
 
   // ---- pixel helpers (virtual coordinates) ----

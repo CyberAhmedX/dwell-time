@@ -18,6 +18,7 @@ export interface MetaData {
   endings: string[];
   achievements: string[];
   codexEver: string[];
+  casesEver: string[]; // every case you have ever closed, for practice mode
   checkpoints: Partial<Record<number, SaveData>>; // chapter -> save at its start
   settings: Settings;
 }
@@ -32,6 +33,7 @@ export function freshMeta(): MetaData {
     endings: [],
     achievements: [],
     codexEver: [],
+    casesEver: [],
     checkpoints: {},
     settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null },
   };
@@ -78,6 +80,11 @@ export function recordEnding(meta: MetaData, id: string): boolean {
 
 export function recordCodex(meta: MetaData, ids: readonly string[]): void {
   for (const id of ids) addOnce(meta.codexEver, id);
+}
+
+/** Remember closed cases, so they can be practised from the title screen. */
+export function recordCases(meta: MetaData, ids: readonly string[]): void {
+  for (const id of ids) addOnce(meta.casesEver, id);
 }
 
 /** Store a copy of the save as it stands at the start of a chapter. */

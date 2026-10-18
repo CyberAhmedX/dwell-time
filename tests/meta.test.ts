@@ -6,6 +6,7 @@ import {
   saveMeta,
   wipeMeta,
   recordEnding,
+  recordCases,
   recordCheckpoint,
   checkpointCopy,
   canSelectChapter,
@@ -28,6 +29,15 @@ describe("meta save", () => {
     expect(back.settings.music).toBe(0.2);
     expect(back.settings.effects).toBe(0.7);
     expect(back.endings).toEqual(["keeper"]);
+  });
+
+  it("remembers closed cases once each, for practice", () => {
+    const m = freshMeta();
+    recordCases(m, ["t1_bakery_phish", "t1_printer"]);
+    recordCases(m, ["t1_bakery_phish"]);
+    expect(m.casesEver).toEqual(["t1_bakery_phish", "t1_printer"]);
+    saveMeta(m);
+    expect(loadMeta().casesEver).toEqual(["t1_bakery_phish", "t1_printer"]);
   });
 
   it("records each ending once", () => {

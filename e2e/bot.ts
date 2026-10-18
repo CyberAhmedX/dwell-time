@@ -18,6 +18,8 @@ export interface Plan {
   scenes?: Record<string, number>;
   // stop once the save reaches this chapter (6 means play to the ending)
   untilChapter?: number;
+  // a hard mode run, which must never offer a hint
+  hard?: boolean;
 }
 
 export async function save(page: Page): Promise<{ chapter: number; flags: string[]; done: string[] }> {
@@ -92,6 +94,25 @@ export async function play(page: Page, plan: Plan): Promise<string | null> {
   throw new Error(`${plan.name}: did not finish`);
 }
 
+/** Work one case in practice mode, from its brief back to the practice list. */
+export async function practiseCase(page: Page, title: string): Promise<void> {
+  await page.locator(".overlay-panel .btn.choice", { hasText: title }).click();
+  for (let step = 0; step < 200; step++) {
+    if (await page.locator(".overlay-panel h2", { hasText: "Practice a case" }).count()) return;
+    const vn = page.locator(".vn[role=button]");
+    if (await vn.count()) {
+      await vn.click();
+      continue;
+    }
+    if (await page.locator(".ws-title").count()) {
+      await workCase(page, { name: "practice", track: "soc" });
+      continue;
+    }
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`practice of "${title}" did not finish`);
+}
+
 async function chooseInScene(page: Page, plan: Plan): Promise<void> {
   const prompt = await page.locator(".vn-choice-prompt").innerText();
   const scene = SCENES.find((s) => s.choice?.prompt === prompt);
@@ -125,6 +146,7 @@ async function workCase(page: Page, plan: Plan): Promise<void> {
   expect(t, `case "${title}"`).toBeDefined();
   const blocks = page.locator(".q-panel .q-block");
   await expect(blocks).toHaveCount(t!.questions.length);
+  if (plan.hard) await expect(page.locator(".hint-btn")).toHaveCount(0);
   for (let i = 0; i < t!.questions.length; i++) await answer(page, blocks.nth(i), t!.questions[i], plan);
   await page.getByRole("button", { name: "Submit findings" }).click();
   await expect(close, `${t!.id} should close on the first submit`).toBeVisible();

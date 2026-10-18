@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { play, save, meta, type Plan } from "./bot";
+import { play, save, meta, practiseCase, type Plan } from "./bot";
 import { ENDINGS } from "../src/engine/endings";
 import { DEPTS, DEPT_LABEL } from "../src/engine/types";
 import { TICKETS } from "../src/content/tickets";
@@ -22,6 +22,13 @@ test("one full run, then every other ending through chapter select", async ({ pa
   // A clean run: right first time, no hints, every side case, the principled choice everywhere.
   const base: Plan = { name: "Riley", track: "soc" };
   expect(await play(page, base)).toBe(ENDINGS.lighthouse.title);
+  // the share card downloads as an image named for the ending
+  await page.getByRole("button", { name: "Share card" }).click();
+  await expect(page.locator(".share-img")).toBeVisible();
+  const [card] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download image" }).click()]);
+  expect(card.suggestedFilename()).toBe("dwell-time-lighthouse-Riley.png");
+  await page.locator(".overlay-close").click();
+
   const clean = await meta(page);
   for (const id of ["first_try", "chain", "scope", "lead", "by_the_book", "clean_hands", "no_hints", "side_work"]) {
     expect(clean.achievements, id).toContain(id);
@@ -61,6 +68,31 @@ for (const dept of DEPTS) {
     for (const t of others) expect(s.done).not.toContain(t.id);
   });
 }
+
+test("hard mode never offers a hint, and practice leaves the run alone", async ({ page }) => {
+  test.setTimeout(2 * 60_000);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(GAME);
+  await page.fill("#player-name", "Kit");
+  await page.check("#hard-mode");
+  await page.getByRole("button", { name: "Apply to Lanternhouse" }).click();
+  expect(await play(page, { name: "Kit", track: "helpdesk", untilChapter: 2, hard: true })).toBeNull();
+  const run = await page.evaluate(() => localStorage.getItem("dwell-time.save.v1"));
+  const s = await save(page);
+  expect(s).toMatchObject({ hard: true, hintsUsed: 0, botched: 0 });
+
+  // practise a case from chapter one twice, then check the run did not move
+  await page.goto(GAME);
+  await page.getByRole("button", { name: "Practice a case" }).click();
+  const first = TICKETS.find((t) => t.id === "t1_bakery_phish")!;
+  await practiseCase(page, first.title);
+  await practiseCase(page, first.title);
+  expect(await page.evaluate(() => localStorage.getItem("dwell-time.save.v1"))).toBe(run);
+  await page.locator(".overlay-close").click();
+  await expect(page.getByRole("button", { name: "Continue as Kit" })).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
 test("a save moves to a fresh browser by file and by code", async ({ page, browser }) => {
   test.setTimeout(2 * 60_000);
