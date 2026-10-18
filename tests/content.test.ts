@@ -7,6 +7,7 @@ import { CODEX } from "../src/content/codex";
 import { ENDINGS } from "../src/engine/endings";
 import { pickTargets } from "../src/engine/pick";
 import { runSolution } from "../src/engine/solution";
+import { rulesPass } from "../src/engine/firewall";
 import { answerMatches, normalizeAnswer } from "../src/engine/answer";
 import { DEPTS } from "../src/engine/types";
 import { trackFlag } from "../src/engine/state";
@@ -43,6 +44,14 @@ function allText(): string[] {
         });
       } else if (ev.kind === "siem") {
         ev.events.forEach((e) => Object.values(e).forEach(push));
+      } else if (ev.kind === "firewall") {
+        push(ev.rules);
+        Object.values(ev.zones).forEach((z) => z.forEach(push));
+        ev.flows.forEach((f) => {
+          push(f.src);
+          push(f.dst);
+          push(f.what);
+        });
       } else if (ev.kind === "email") {
         push(ev.from);
         push(ev.to);
@@ -89,6 +98,10 @@ function allText(): string[] {
         push(q.explainWrong);
       } else if (q.type === "typed") {
         q.answer.forEach(push);
+        push(q.explainRight);
+        push(q.explainWrong);
+      } else if (q.type === "rules") {
+        push(q.solution);
         push(q.explainRight);
         push(q.explainWrong);
       } else {
@@ -381,5 +394,19 @@ describe("terminal cases", () => {
   it("answers are matched loosely but not wrongly", () => {
     expect(answerMatches(" Sync-Telemetry[.]example. ", ["sync-telemetry.example"])).toBe(true);
     expect(answerMatches("telemetry.example", ["sync-telemetry.example"])).toBe(false);
+  });
+});
+
+describe("firewall cases", () => {
+  const rulesQs = TICKETS.flatMap((t) => t.questions.flatMap((q) => (q.type === "rules" ? [{ t, q }] : [])));
+
+  it("the given solution passes every flow, and the starting rules do not", () => {
+    for (const { t, q } of rulesQs) {
+      const ev = t.evidence.find((e) => e.id === q.evidence);
+      expect(ev?.kind, q.id).toBe("firewall");
+      if (ev?.kind !== "firewall") continue;
+      expect(rulesPass(q.solution, ev.flows, ev.zones), `${q.id}: solution`).toBe(true);
+      expect(rulesPass(ev.rules, ev.flows, ev.zones), `${q.id}: starting rules already pass`).toBe(false);
+    }
   });
 });

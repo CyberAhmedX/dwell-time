@@ -1,5 +1,7 @@
 // Core data model for Dwell Time. Content is plain data so it can be unit tested.
 
+import type { Flow as FirewallFlow } from "./firewall";
+
 export type Dept = "soc" | "network" | "helpdesk" | "forensics" | "pentest" | "intel";
 
 export const DEPTS: Dept[] = ["soc", "network", "helpdesk", "forensics", "pentest", "intel"];
@@ -110,7 +112,18 @@ export interface SiemEvidence {
   events: Record<string, string>[];
 }
 
+// A firewall rule set you can edit and test against traffic. See engine/firewall.ts.
+export interface FirewallEvidence {
+  kind: "firewall";
+  id: string;
+  label: string;
+  zones: Record<string, string[]>; // named address groups; "!range" excludes
+  rules: string; // the rules as they stand when you arrive
+  flows: FirewallFlow[]; // test traffic, each with the outcome the policy wants
+}
+
 export type Evidence =
+  | FirewallEvidence
   | SiemEvidence
   | TerminalEvidence
   | EmailEvidence
@@ -203,7 +216,20 @@ export interface TypedQuestion {
   solution?: { evidence: string; command: string };
 }
 
-export type Question = TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
+// Fix the rules in a firewall evidence item until every test flow behaves.
+export interface RulesQuestion {
+  type: "rules";
+  id: string;
+  prompt: string;
+  evidence: string; // firewall evidence id within the same ticket
+  solution: string; // one rule set that works, shown after the case closes
+  explainRight: string;
+  explainWrong: string;
+  teaches?: string;
+  hint?: string;
+}
+
+export type Question = RulesQuestion | TypedQuestion | SingleQuestion | MultiQuestion | OrderQuestion | SpotQuestion | DecisionQuestion;
 
 // A MITRE ATT&CK technique the case involved, for example T1566 Phishing.
 export interface AttackTag {

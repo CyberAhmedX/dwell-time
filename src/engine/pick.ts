@@ -12,6 +12,7 @@ export function pickTargets(ev: Evidence): PickTarget[] {
   switch (ev.kind) {
     case "terminal":
     case "siem":
+    case "firewall":
       return []; // you type into these, you do not point at them
     case "email": {
       const out: PickTarget[] = [
