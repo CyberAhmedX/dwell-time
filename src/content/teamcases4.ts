@@ -1,4 +1,5 @@
 import type { Ticket } from "../engine/types";
+import { F } from "../engine/endings";
 
 // Chapter four, the gale, your own team's temptation. Walter, warm as ever,
 // asks each team to bend one rule in its own way. Taking it sets crossed_line,
@@ -115,7 +116,7 @@ const TEMPT_NETWORK: Ticket = {
       options: [
         "It is slower than a scoped rule on the firewall",
         "It opens a path for the attacker, not just for HarborWatch",
-        "It only works on weekdays, not during a storm",
+        "It has to be re-entered by hand after every reboot",
         "It needs the vendor's approval before it can be added",
       ],
       answer: 1,
@@ -136,7 +137,7 @@ const TEMPT_NETWORK: Ticket = {
         },
         {
           text: "Add the allow-any rule. It is temporary, and he is the one who signs the checks.",
-          setFlags: ["crossed_line", "left_firewall_open"],
+          setFlags: ["crossed_line", F.openDoor],
           integrity: -2,
           result: "The rule goes in. Monitoring survives, and so does a wide-open path straight through the boundary. Temporary rules have a way of being there exactly when the attacker needs them.",
         },

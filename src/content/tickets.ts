@@ -6,6 +6,7 @@ import { TEMPT_TICKETS } from "./teamcases4";
 import { SIDE_TICKETS } from "./sides";
 import { schoolDnsLog } from "./logs";
 import { ATTACK_CATALOGUE } from "./attack";
+import { F } from "../engine/endings";
 
 const SCHOOL_DNS = schoolDnsLog();
 
@@ -833,7 +834,7 @@ const STORY_TICKETS: Ticket[] = [
           },
           {
             text: "Take a quick, careful look at the OT network, just to prove the risk.",
-            setFlags: ["crossed_scope", "left_firewall_open", "crossed_line"],
+            setFlags: ["crossed_scope", F.openDoor, "crossed_line"],
             integrity: -3,
             result: "You reach across into the control network for 'just a look'. Nothing breaks. But you left a path noted, a door nudged open, and you did something nobody authorized. On an OT network, 'nothing broke' is luck, not skill.",
           },

@@ -25,6 +25,7 @@ import { DEPTS, type Dept } from "../src/engine/types";
 import { TICKETS } from "../src/content/tickets";
 import { CHAPTERS } from "../src/content/chapters";
 import { resolveEnding, ENDINGS, F, FINALE_SUCCESS, FINALE_FAILED, LIGHTHOUSE_MIN_INTEGRITY } from "../src/engine/endings";
+import { liveSeconds, CROSSED_LINE } from "../src/engine/live";
 
 describe("ranks", () => {
   it("starts as Applicant before hire", () => {
@@ -248,5 +249,35 @@ describe("rank pacing", () => {
 
   it("Senior Analyst is reachable even with one retry on every case", () => {
     for (const d of DEPTS) expect(total(cases(d, true), 1), d).toBeGreaterThanOrEqual(senior);
+  });
+});
+
+describe("live clock", () => {
+  const ticket = { live: { seconds: 300 } } as unknown as Parameters<typeof liveSeconds>[0];
+
+  it("gives the base time on a normal run", () => {
+    expect(liveSeconds(ticket, freshSave(), false)).toBe(300);
+  });
+
+  it("doubles the time with relaxed timers", () => {
+    expect(liveSeconds(ticket, freshSave(), true)).toBe(600);
+  });
+
+  it("halves the time after crossing the line", () => {
+    const s = freshSave();
+    setFlag(s, CROSSED_LINE);
+    expect(liveSeconds(ticket, s, false)).toBe(150);
+  });
+
+  it("relaxed and crossed cancel out to the base time", () => {
+    const s = freshSave();
+    setFlag(s, CROSSED_LINE);
+    expect(liveSeconds(ticket, s, true)).toBe(300);
+  });
+
+  it("hard mode tightens the clock", () => {
+    const s = freshSave();
+    s.hard = true;
+    expect(liveSeconds(ticket, s, false)).toBe(210);
   });
 });

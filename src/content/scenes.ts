@@ -123,7 +123,7 @@ export const SCENES: Scene[] = [
           integrity: -3,
           reply: [
             { who: "you", text: "The past stays in the past. You have my word." },
-            { who: "walter", text: "Thank you. You will not regret this. I did, once. Do not make my mistake, make the better version of it." },
+            { who: "walter", text: "Then it is done. You are Senior Analyst as of tonight, with the pay to match. I did this once myself. Do not make my mistake, make the better version of it." },
           ],
         },
         {
@@ -131,7 +131,8 @@ export const SCENES: Scene[] = [
           integrity: 2,
           reply: [
             { who: "you", text: "I cannot promise that, Walter. Someone already paid for this once, unfairly. I will not help it happen twice." },
-            { who: "walter", text: "Then I hope you are as sure as you sound. Because the storm is not going to wait for your conscience." },
+            { who: "walter", text: "Then we leave it there. The Senior role, and the raise, go to someone who puts the firm first. You stay exactly where you are. We will both pretend this was a warmer conversation than it was." },
+            { who: "narration", text: "He is smiling again by the time he reaches the door. It costs you the promotion and, you suspect, a good deal more. It buys you the one thing you can still look at in the mirror." },
           ],
         },
       ],
@@ -164,7 +165,7 @@ export const SCENES: Scene[] = [
           // and read the recon properly. Leave a door open or botch the recon
           // and this option is gone.
           text: "Cut it at the root: disable the HarborWatch shared credential everywhere and isolate the jump box from the OT boundary.",
-          hideIf: ["left_firewall_open", "botched_t5_plant_recon", "botched_t5_network", "botched_t5_helpdesk", "botched_t5_forensics", "botched_t5_pentest", "botched_t5_intel"],
+          hideIf: [F.openDoor, "botched_t5_plant_recon", "botched_t5_network", "botched_t5_helpdesk", "botched_t5_forensics", "botched_t5_pentest", "botched_t5_intel"],
           setFlags: [FINALE_SUCCESS],
           integrity: 2,
           reply: [
@@ -213,7 +214,10 @@ export const SCENES: Scene[] = [
           ],
         },
         {
+          // Only on offer if you never handed her to Walter back in chapter
+          // three. Sell her out then and she will not trust you with the story.
           text: "Give the evidence to BRACKISH so she can publish it herself.",
+          hideIf: [F.toldWalter],
           setFlags: [F.gaveNadia],
           integrity: 0,
           reply: [

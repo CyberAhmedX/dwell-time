@@ -12,6 +12,7 @@ export interface Settings {
   textScale: number; // 1 is the default size
   reducedMotion: boolean | null; // null follows the system setting
   relaxedTimers: boolean; // live cases get twice as long
+  fastDialogue: boolean; // show a scene's lines at once instead of one click at a time
 }
 
 export interface MetaData {
@@ -38,7 +39,7 @@ export function freshMeta(): MetaData {
     casesEver: [],
     secretsEver: [],
     checkpoints: {},
-    settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false },
+    settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false, fastDialogue: false },
   };
 }
 

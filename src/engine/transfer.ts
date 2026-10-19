@@ -128,6 +128,7 @@ function cleanMeta(x: unknown): MetaData {
     if ((TEXT_SCALES as readonly number[]).includes(st.textScale as number)) m.settings.textScale = st.textScale as number;
     m.settings.reducedMotion = st.reducedMotion === true ? true : st.reducedMotion === false ? false : null;
     m.settings.relaxedTimers = st.relaxedTimers === true;
+    m.settings.fastDialogue = st.fastDialogue === true;
   }
   return m;
 }
