@@ -22,6 +22,8 @@
 
 You are the newest hire at Lanternhouse Security, a small firm keeping a rainy harbor town safe. You interview for a team, close tickets, climb from Probationary Analyst to Lead, and slowly uncover what has been hiding in the quiet. Your choices lead to one of five endings.
 
+It is built for students and people getting ready for a first SOC or help desk job: the cases are real scenarios, explained as you meet them. If you already do this for a living, Hard mode turns off the hints, gives you one attempt per case, and tightens the clock in the live finale.
+
 ## Screenshots
 
 | Apply and interview for real | Learn the trade on real cases |
@@ -68,10 +70,10 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **XP and ranks**: climb from Probationary Analyst to Lead Analyst as you close cases.
 - **Original procedural music and sound**, synthesized live in the browser. Nothing is sampled or copied.
 - **Five endings** driven by your choices about integrity, trust, and the truth. An endings gallery tracks the ones you have found, and after your first ending you can replay any chapter from where your last run stood. Download a share card of how your run ended.
-- **Hard mode and practice mode**: take every case with no hints and one attempt, or replay any case you have closed without touching your run.
+- **Hard mode and practice mode**: Hard mode is no hints, one attempt per case, and a tighter finale clock, for players who already know the trade. Practice mode replays any case you have closed without touching your run.
 - **Case Files**: every team has its own secret to uncover. Find all six across your runs for the Six Sides of the Story achievement.
 - **Achievements** for how you played, like keeping the evidence chain intact, finishing on hard mode, or closing every case right on the first try.
-- **Settings** for music and effects volume, text size, reduced motion, and relaxed timers.
+- **Settings** for music and effects volume, text size, reduced motion, relaxed timers, and fast dialogue (show each conversation at once).
 - **Export and import saves** as a file or a short code, to back up a run or carry it to another browser or device.
 
 ## Everything here is fictional and safe

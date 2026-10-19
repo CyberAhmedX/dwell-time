@@ -192,6 +192,7 @@ body {
 }
 .title-sub { margin: -6px 0 0; color: var(--teal); font-family: var(--mono); font-size: calc(13px * var(--ts)); }
 .title-blurb { margin: 6px 0 2px; color: var(--fg-dim); font-size: calc(15px * var(--ts)); }
+.title-audience { margin: 0 0 2px; color: var(--muted); font-size: calc(12.5px * var(--ts)); }
 .field-label { font-size: calc(12px * var(--ts)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
 .name-input, .log-filter, .slider {
   width: 100%;
@@ -485,6 +486,9 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 .vn-speaker .portrait { width: 56px; height: 56px; }
 .vn-name { font-family: var(--display); font-size: calc(15px * var(--ts)); }
 .vn-text { font-size: calc(17px * var(--ts)); line-height: 1.6; margin: 0; }
+.vn-all { display: flex; flex-direction: column; gap: 10px; }
+.vn-all .vn-text.narration { font-style: italic; color: var(--fg-dim); }
+.vn-all .vn-name { margin-bottom: -6px; }
 .vn-hint { margin-top: 12px; font-size: calc(11px * var(--ts)); color: var(--fg-dim); text-align: right; letter-spacing: 1px; text-transform: uppercase; animation: blink 1.4s ease-in-out infinite; }
 .vn-choice { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
 .vn-choice-prompt { font-size: calc(15px * var(--ts)); color: var(--amber-soft); margin: 0 0 4px; }
@@ -514,6 +518,8 @@ table.log, table.flow { width: 100%; border-collapse: collapse; font-family: var
 .ending-rank { color: var(--fg-dim); margin: 0; font-size: calc(15px * var(--ts)); }
 .ending-epi { color: var(--muted); font-style: italic; margin: 4px 0 10px; }
 .ending-roster { margin-top: 6px; }
+.ending-feedback { margin-top: 10px; font-size: calc(13px * var(--ts)); }
+.ending-feedback a { color: var(--teal); }
 
 /* ------------------------------------------------------------------ overlays */
 .overlay {

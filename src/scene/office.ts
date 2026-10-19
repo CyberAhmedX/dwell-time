@@ -15,6 +15,17 @@ interface Drop {
 const VW = 320; // virtual pixel width
 const VH = 180; // virtual pixel height
 
+// Clickable bits of the office, in virtual coordinates, each with a line of
+// flavor. Rectangles match what draw() lays down (corkboard, window, plant,
+// server rack, the cat).
+const HOTSPOTS: { x: number; y: number; w: number; h: number; text: string }[] = [
+  { x: 16, y: 20, w: 60, h: 42, text: "Juno's red-string board: half real cases, half a map of who still owes the coffee fund." },
+  { x: 150, y: 14, w: 120, h: 70, text: "The lighthouse runs its own generator. Priya swears it has better uptime than half the town's servers." },
+  { x: 286, y: 40, w: 26, h: 72, text: "The server rack hums day and night, the only thing in Port Halden that never sleeps." },
+  { x: 288, y: 88, w: 16, h: 30, text: "Theo's desk fern has outlived three interns and one incident response plan." },
+  { x: 170, y: 144, w: 30, h: 24, text: "Packet, Chief Morale Officer. Walks on keyboards and accepts bribes in tuna." },
+];
+
 export class OfficeScene {
   private ctx: CanvasRenderingContext2D;
   private raf = 0;
@@ -48,6 +59,18 @@ export class OfficeScene {
 
   setChapter(ch: Chapter): void {
     this.mood = MOODS[ch];
+  }
+
+  /** The flavor line for a bit of office furniture at this screen point, if any. */
+  inspect(clientX: number, clientY: number): string | null {
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return null;
+    const cx = (clientX - r.left) * (this.canvas.width / r.width);
+    const cy = (clientY - r.top) * (this.canvas.height / r.height);
+    const vx = (cx - this.offX) / this.scale;
+    const vy = (cy - this.offY) / this.scale;
+    const hit = HOTSPOTS.find((h) => vx >= h.x && vx <= h.x + h.w && vy >= h.y && vy <= h.y + h.h);
+    return hit ? hit.text : null;
   }
 
   start(): void {

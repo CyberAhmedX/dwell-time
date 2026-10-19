@@ -99,7 +99,7 @@ describe("save transfer", () => {
       totalCloses: 1,
       extra: "ignored",
     };
-    const data = { save: odd, meta: { ...m, settings: { music: 9, effects: 0.5, muted: "yes", textScale: 3, reducedMotion: "sometimes" } } };
+    const data = { save: odd, meta: { ...m, settings: { music: 9, effects: 0.5, muted: "yes", textScale: 3, reducedMotion: "sometimes", fastDialogue: "yes" } } };
     const bundle = { format: "dwell-time-save", version: 1, exported: "", check: checksum(JSON.stringify(data)), data };
     const r = await readSave(JSON.stringify(bundle));
     expect(r.ok).toBe(true);
@@ -113,7 +113,7 @@ describe("save transfer", () => {
     expect(r.save.done).toEqual([]);
     expect(r.save.totalCloses).toBe(3);
     expect("extra" in r.save).toBe(false);
-    expect(r.meta.settings).toEqual({ music: 0.7, effects: 0.5, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false });
+    expect(r.meta.settings).toEqual({ music: 0.7, effects: 0.5, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false, fastDialogue: false });
   });
 
   it("names the file after the player and the date", async () => {

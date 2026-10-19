@@ -13,7 +13,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     if (v === undefined || v === false) continue;
     if (k === "class") node.className = String(v);
     else if (k === "text") node.textContent = String(v);
-    else if (k === "html") node.innerHTML = String(v);
     else if (k.startsWith("data-") || k === "role" || k === "aria-label" || k === "type" || k === "id" || k === "for" || k === "value" || k === "placeholder" || k === "maxlength" || k === "min" || k === "max" || k === "step")
       node.setAttribute(k, String(v));
     else if (v === true) node.setAttribute(k, "");

@@ -821,7 +821,7 @@ export const INTERVIEWS: InterviewTrack[] = [
           "To make the domain shorter and easier to read",
           "So nobody clicks it or a tool opens it by accident",
           "So the attacker cannot tell that we found it",
-          "Because reports cannot contain real dots",
+          "To stop a spam filter flagging the report email",
         ],
         answer: 1,
         explainRight: "Right. Defanging stops a reader, a mail client or a chat app from turning a live indicator into a clickable link.",

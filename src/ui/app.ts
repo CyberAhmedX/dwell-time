@@ -99,6 +99,13 @@ export class App {
       setTimeout(() => audio.thunder(near ? 1 : 0.55 + Math.random() * 0.2), delay);
     };
     this.scene.start();
+    // Click a bit of the office that is not covered by UI to read some flavor.
+    this.root.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("button, a, input, select, textarea, label, .opt, .ord-arrow, .ticket-card, .vn, .overlay, .card, .ws-col, .q-panel, .title-card, .decision-opt, .seg, .slider")) return;
+      const lore = this.scene.inspect(e.clientX, e.clientY);
+      if (lore) this.showToast(lore, 4200);
+    });
     this.render();
   }
 
@@ -226,7 +233,7 @@ export class App {
     const hardBox = el("input", { type: "checkbox", id: "hard-mode" }) as HTMLInputElement;
     const hardRow = el("label", { class: "check-row", for: "hard-mode" }, [
       hardBox,
-      el("span", {}, [el("b", { text: "Hard mode. " }), el("span", { text: "No hints, and one attempt at every case. A wrong answer and the case is botched." })]),
+      el("span", {}, [el("b", { text: "Hard mode. " }), el("span", { text: "For experienced players: no hints, one attempt at every case, and a tighter clock in the live finale. A wrong answer and the case is botched." })]),
     ]);
 
     const start = el("button", {
@@ -256,6 +263,7 @@ export class App {
       el("p", { class: "title-sub", text: "how long an intruder stays before anyone notices" }),
       el("p", { class: "title-blurb", text: "You are the newest hire at Lanternhouse Security, a small firm keeping a rainy harbor town safe. Learn the trade, close the tickets, and find out what has been hiding in the quiet." },
       ),
+      el("p", { class: "title-audience", text: "Made for students and beginners getting ready for a SOC or help desk job. Turn on Hard mode if you already do this for a living." }),
     ]);
 
     if (resumeAvailable) {
@@ -1342,6 +1350,29 @@ export class App {
       };
     };
 
+    // Fast dialogue: lay the whole conversation out at once, one click to move on.
+    const showAll = (): void => {
+      const content = el("div", { class: "vn-box vn-all" });
+      for (const line of lines) {
+        const info = CHARACTERS[line.who];
+        const isNarration = line.who === "narration" || !info || info.name === "";
+        if (!isNarration) content.append(el("span", { class: "vn-name", text: info.name, style: `color:${info.color}` }));
+        content.append(el("p", { class: isNarration ? "vn-text narration" : "vn-text", text: line.text }));
+      }
+      content.append(el("div", { class: "vn-hint", text: "click to continue" }));
+      mount(box, content);
+      box.onclick = (): void => {
+        audio.type();
+        finishLines();
+      };
+      box.onkeydown = (e: KeyboardEvent): void => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          box.onclick?.(new MouseEvent("click"));
+        }
+      };
+    };
+
     const finishLines = (): void => {
       box.onclick = null;
       box.onkeydown = null;
@@ -1376,7 +1407,8 @@ export class App {
       panel.querySelector("button")?.focus();
     };
 
-    showLine();
+    if (this.meta.settings.fastDialogue && lines.length > 1) showAll();
+    else showLine();
   }
 
   private applyChoice(opt: SceneChoice): void {
@@ -1446,7 +1478,11 @@ export class App {
           text: seen >= total ? "You have seen every ending." : `You have seen ${seen} of ${total} endings. Replay a chapter from the title screen to find the others.`,
         }),
       ]);
-      card.append(again, share, record, endings);
+      const feedback = el("p", { class: "ending-feedback muted" }, [
+        el("span", { text: "Got stuck, or found a bug? " }),
+        el("a", { href: "https://github.com/CyberAhmedX/dwell-time/issues", target: "_blank", rel: "noopener", text: "Tell me what happened." }),
+      ]);
+      card.append(again, share, record, endings, feedback);
       this.stage.className = "stage center";
       mount(this.stage, card);
     });
@@ -1730,6 +1766,18 @@ export class App {
           changed();
         },
       ),
+      choices(
+        "Fast dialogue",
+        [
+          { text: "Off", value: false },
+          { text: "On: show each conversation at once", value: true },
+        ],
+        set.fastDialogue,
+        (v) => {
+          set.fastDialogue = v;
+          changed();
+        },
+      ),
       el("div", { class: "set-row" }, [record]),
       el("div", { class: "set-row" }, [
         el("span", { class: "set-label", text: "Your save lives in this browser. Export it as a backup, or to carry on somewhere else." }),
@@ -2010,14 +2058,14 @@ export class App {
     return b;
   }
 
-  private showToast(text: string): void {
+  private showToast(text: string, ms = 2600): void {
     const t = el("div", { class: "toast", text });
     this.toasts.append(t);
     requestAnimationFrame(() => t.classList.add("show"));
     setTimeout(() => {
       t.classList.remove("show");
       setTimeout(() => t.remove(), 400);
-    }, 2600);
+    }, ms);
   }
 }
 
