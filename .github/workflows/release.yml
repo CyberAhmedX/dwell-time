@@ -31,13 +31,28 @@ jobs:
       - run: npm run build
       - name: Name the playable file
         run: cp dist/index.html "dwell-time.html"
+      - name: Build release notes from CHANGELOG.md
+        run: |
+          ver="${{ github.event.inputs.tag || github.ref_name }}"
+          ver="${ver#v}"
+          {
+            echo "A cozy-to-dark cybersecurity career simulation."
+            echo
+            echo "Play online: https://cyberahmedx.github.io/dwell-time/"
+            echo
+            echo "Or download **dwell-time.html** below and open it in any browser. It is fully self-contained and runs offline, no install required."
+            echo
+            awk -v v="$ver" 'index($0, "## [" v "]") == 1 { g = 1; print; next } g && /^## \[/ { exit } g { print }' CHANGELOG.md
+          } > notes.md
+          echo "----- notes.md -----"; cat notes.md
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Dwell Time ${{ github.event.inputs.tag || github.ref_name }}
-          # Notes come from RELEASE_NOTES.md (update it per release). GitHub's
-          # auto notes only list merged PRs, so direct pushes to main are missed.
+          # Body is the matching section of CHANGELOG.md (the new entry on a
+          # version bump). GitHub's auto notes only list PRs, which misses
+          # direct pushes to main.
           generate_release_notes: false
           files: dwell-time.html
-          body_path: RELEASE_NOTES.md
+          body_path: notes.md

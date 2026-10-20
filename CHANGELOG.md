@@ -1,0 +1,58 @@
+# Changelog
+
+All notable changes to Dwell Time, newest first. This file follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
+[semantic versioning](https://semver.org/).
+
+Play online: https://cyberahmedx.github.io/dwell-time/
+
+## [2.2.1] - 2026-10-20
+
+### Added
+- Cases that change between runs: some cases are generated fresh each run, so the addresses, account names and logs are not the same twice. Replaying means reading the evidence again, not recalling an answer.
+- New-player onboarding: the first time you meet a hands-on tool (SIEM, terminal, firewall, admin console, timeline builder, pivot board, CVSS calculator, detection rules, reports and more), a one-line tip shows how to drive it, with an example.
+- A setting to skip story scenes you have already read on a replay. It never skips a scene with a choice.
+- A "Why?" button that folds long answer explanations behind a tap, so feedback stays short at a glance.
+- A "Stuck?" link in every case, and judgment-call choices now show their weight the moment you make them.
+
+### Fixed
+- A SIEM search could crash on an unusually long or malformed value; it now reports a friendly error. Added adversarial tests so the terminal, SIEM, firewall, detection-rule and request tools all handle bad input gracefully.
+- A late-game decision could still be offered after it no longer changed the outcome, and an earlier choice now carries through to how the story ends.
+- Tidied unused story flags, added a missing test for the finale timer, and removed an unused unsafe HTML code path.
+
+## [2.1.0] - 2026-10-19
+
+### Added
+- A fast-dialogue setting, clickable office details that reveal lore and Field Notes, and a private security policy for reporting issues.
+- The audience is stated on the title screen and in the README: students and beginners getting ready for a SOC or help desk job.
+
+### Changed
+- Harder choices and a tighter hard-mode finale clock.
+
+### Fixed
+- Answer and story-flag fixes from an audit, and clearer wrong-option wording so the right answer does not stand out by length.
+
+## [2.0.0] - 2026-10-18
+
+### Added
+- A hands-on tool for every team: a terminal, SIEM search, a firewall rule editor, an admin console, a timeline builder, a request editor, a pivot board, a scope checker, a CVSS calculator, detection rules, incident reports and ATT&CK mapping.
+- Team storylines through the whole game, a secret for each team to uncover, and a live, timed finale.
+
+### Changed
+- Chapter two to five cases rebuilt around the new tools instead of multiple choice.
+
+## [1.1.0] - 2026-10-17
+
+### Added
+- Settings, an endings gallery, achievements and chapter select.
+- Click-the-evidence questions, paid hints and ATT&CK tags.
+- A case for each career track and a side case in every chapter.
+- Save export and import, and browser tests that play the game to every ending.
+
+### Fixed
+- Answer reveal, rank pacing, the title screen, keyboard dialogue and ending logic. Shuffled and rewrote answer options so the right one does not stand out.
+
+## [1.0.0] - 2026-10-17
+
+### Added
+- First public release: a five-chapter narrative cybersecurity career game that runs offline in a single self-contained HTML file.
