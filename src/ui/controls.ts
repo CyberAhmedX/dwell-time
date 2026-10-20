@@ -56,10 +56,26 @@ function explainBox(wrap: HTMLElement): HTMLElement {
   return expl;
 }
 
+// Explanations longer than this fold behind a "Why?" toggle, so the feedback
+// stays short at a glance and the full teaching note is one tap away.
+const WHY_FOLD_LEN = 160;
+
 function showExplain(expl: HTMLElement, right: boolean, q: { explainRight: string; explainWrong: string }, ...more: HTMLElement[]): void {
   expl.hidden = false;
   expl.className = right ? "explain good" : "explain bad";
-  mount(expl, el("p", { text: right ? q.explainRight : q.explainWrong }), ...more);
+  const text = right ? q.explainRight : q.explainWrong;
+  if (text.length <= WHY_FOLD_LEN) {
+    mount(expl, el("p", { text }), ...more);
+    return;
+  }
+  const body = el("p", { class: "explain-text", text, hidden: true });
+  const why = el("button", { class: "why-btn", type: "button", text: "Why?" });
+  why.addEventListener("click", () => {
+    const show = body.hidden;
+    body.hidden = !show;
+    why.textContent = show ? "Hide" : "Why?";
+  });
+  mount(expl, why, body, ...more);
 }
 
 // ---------- scope ----------

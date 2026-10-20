@@ -46,6 +46,9 @@ import {
   recordCheckpoint,
   checkpointCopy,
   canSelectChapter,
+  hasSeenScene,
+  markSceneSeen,
+  firstToolUse,
 } from "../engine/meta";
 import { ACHIEVEMENTS, checkAchievements } from "../engine/achievements";
 import { makeBundle, bundleToCode, bundleToFile, readSave, fileName } from "../engine/transfer";
@@ -65,6 +68,24 @@ import { renderEvidence } from "./evidence";
 import { drawShareCard, shareFileName } from "./sharecard";
 import { CROSSED_LINE, liveSeconds } from "../engine/live";
 import { type QuestionControl, markBlock, scrollMotion, scopeQuestion, cvssQuestion, iocQuestion, mapQuestion, detectQuestion, reportQuestion } from "./controls";
+
+// One plain, beginner-friendly line per hands-on tool, shown the first time a
+// player meets it. Keyed by evidence kind or question type. No em dashes.
+const TOOL_TIPS: Record<string, string> = {
+  terminal: "New tool: the terminal. Type a command and press Enter, like grep lab-pc-07 dns.log, and chain them with pipes: cut -f2 dns.log | sort | uniq -c.",
+  siem: "New tool: the SIEM. Filter with field=value, then pipe to stats, like action=failure | stats count by src_ip | sort -count.",
+  firewall: "New tool: the firewall editor. Write allow and deny rules in order, then Replay traffic to see what each flow does. The first matching rule wins.",
+  console: "New tool: the admin console. Lock a hijacked account down in order: reset the password, end its sessions, remove bad mail rules, fix MFA.",
+  merge: "New tool: the timeline builder. Set each log's time zone so the events line up on one clock. Get it wrong and things happen out of order.",
+  request: "New tool: the request editor. Change the request, press Send, and read the reply. Try changing an id to one that is not yours.",
+  pivot: "New tool: the pivot board. Search a domain or address, then follow it to the rest of the attacker's infrastructure.",
+  scope: "New tool: the scope checker. Tick only the addresses the engagement letter allows. Exclusions win, and anything not listed is out.",
+  cvss: "New tool: the CVSS calculator. Pick a value for each metric to build the vector and get the score.",
+  detect: "New tool: the detection rule editor. Write a rule, then test it against the replay. Catch the attack and stay quiet on the false alarms.",
+  report: "New tool: write the report in your own words. It is checked for the key facts: what happened, from where, and the fix.",
+  "attack-map": "New tool: map each behaviour you saw to its MITRE ATT&CK technique id. Look ids up in the matrix if you need to.",
+  iocs: "New tool: paste the indicators onto the block list, defanged so nobody clicks them, like 203[.]0[.]113[.]77.",
+};
 
 export class App {
   private root: HTMLElement;
@@ -678,9 +699,36 @@ export class App {
       done.focus();
     };
 
+    // First-use onboarding: the first time a player meets a hands-on tool, show
+    // one plain line on how to drive it, with an example. Shown once per tool,
+    // never in review mode.
+    const coachTips: string[] = [];
+    if (!review) {
+      const keys = new Set<string>();
+      for (const ev of t.evidence) if (TOOL_TIPS[ev.kind]) keys.add(ev.kind);
+      for (const q of t.questions) if (TOOL_TIPS[q.type]) keys.add(q.type);
+      for (const k of keys) if (firstToolUse(this.meta, k)) coachTips.push(TOOL_TIPS[k]);
+      if (coachTips.length) saveMeta(this.meta);
+    }
+    const coach = coachTips.length
+      ? el("div", { class: "coach" }, [
+          el("div", { class: "coach-head", text: coachTips.length > 1 ? "New tools for this case" : "New tool for this case" }),
+          ...coachTips.map((tip) => el("p", { class: "coach-tip", text: tip })),
+        ])
+      : el("span");
+
+    // A quiet "Stuck?" line so a player who is blocked has somewhere to go.
+    const stuck =
+      review || this.practice
+        ? el("span")
+        : el("p", { class: "ws-stuck muted" }, [
+            el("span", { text: "Stuck? Use a hint if there is one, re-read the evidence, or " }),
+            el("a", { href: "https://github.com/CyberAhmedX/dwell-time/issues", target: "_blank", rel: "noopener", text: "tell me where you got stuck." }),
+          ]);
+
     const body = el("div", { class: "ws-body" }, [
-      el("div", { class: "ws-col ws-evidence" }, [el("div", { class: "col-label", text: "Evidence" }), evPanel]),
-      el("div", { class: "ws-col ws-questions" }, [el("div", { class: "col-label", text: "Your analysis" }), qPanel, feedback, submit]),
+      el("div", { class: "ws-col ws-evidence" }, [el("div", { class: "col-label", text: "Evidence" }), coach, evPanel]),
+      el("div", { class: "ws-col ws-questions" }, [el("div", { class: "col-label", text: "Your analysis" }), qPanel, feedback, submit, stuck]),
     ]);
 
     if (review && t.attack?.length) head.append(attackTags(t));
@@ -977,7 +1025,9 @@ export class App {
           if (ci === oi) c.classList.add("sel");
         });
         result.hidden = false;
-        mount(result, el("p", { text: o.result }));
+        const d = o.integrity ?? 0;
+        const cue = d < 0 ? "That bends the line. It will show in your conduct, and in how this ends." : d > 0 ? "That holds the line. It may cost you now, but it tells in how this ends." : "";
+        mount(result, el("p", { text: o.result }), ...(cue ? [el("p", { class: "decision-cue muted", text: cue })] : []));
         audio.notify();
       });
       opts.append(b);
@@ -1309,6 +1359,15 @@ export class App {
   // ----------------------------------------------------------------- scenes
   private playScene(sc: Scene, onDone: () => void): void {
     (sc.setFlags ?? []).forEach((f) => setFlag(this.s, f));
+    // Skip-seen: on a replay, step past a scene you have already read, as long
+    // as it has no choice to make. Flags above still apply either way.
+    const seen = hasSeenScene(this.meta, sc.id);
+    markSceneSeen(this.meta, sc.id);
+    saveMeta(this.meta);
+    if (seen && !sc.choice && this.meta.settings.skipSeen) {
+      onDone();
+      return;
+    }
     this.playDialogue(sc.lines, sc.choice, onDone);
   }
 
@@ -1783,6 +1842,18 @@ export class App {
         set.fastDialogue,
         (v) => {
           set.fastDialogue = v;
+          changed();
+        },
+      ),
+      choices(
+        "Skip seen scenes",
+        [
+          { text: "Off", value: false },
+          { text: "On: skip story you have already read", value: true },
+        ],
+        set.skipSeen,
+        (v) => {
+          set.skipSeen = v;
           changed();
         },
       ),

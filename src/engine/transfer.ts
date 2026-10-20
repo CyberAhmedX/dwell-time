@@ -114,6 +114,8 @@ function cleanMeta(x: unknown): MetaData {
   m.codexEver = ids(x.codexEver);
   m.casesEver = ids(x.casesEver);
   m.secretsEver = ids(x.secretsEver);
+  m.seenScenes = ids(x.seenScenes);
+  m.toolsSeen = ids(x.toolsSeen);
   if (isObj(x.checkpoints)) {
     for (const [k, v] of Object.entries(x.checkpoints)) {
       const ch = Number(k);
@@ -130,6 +132,7 @@ function cleanMeta(x: unknown): MetaData {
     m.settings.reducedMotion = st.reducedMotion === true ? true : st.reducedMotion === false ? false : null;
     m.settings.relaxedTimers = st.relaxedTimers === true;
     m.settings.fastDialogue = st.fastDialogue === true;
+    m.settings.skipSeen = st.skipSeen === true;
   }
   return m;
 }

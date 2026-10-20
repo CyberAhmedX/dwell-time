@@ -304,7 +304,16 @@ body {
 .explain.bad { background: rgba(224, 98, 119, 0.1); border: 1px solid rgba(224, 98, 119, 0.4); }
 .explain p { margin: 0 0 10px; }
 .explain p:last-child { margin-bottom: 0; }
+.why-btn { appearance: none; background: transparent; border: 1px solid var(--edge); color: var(--fg-dim); border-radius: 7px; padding: 3px 10px; font: inherit; font-size: calc(13px * var(--ts)); cursor: pointer; }
+.why-btn:hover { color: var(--fg); border-color: var(--teal-dim); }
+.explain-text { margin-top: 10px; }
+.coach { margin: 6px 0 12px; padding: 10px 12px; border-radius: 9px; background: rgba(70, 198, 184, 0.1); border: 1px solid rgba(70, 198, 184, 0.35); font-size: calc(13px * var(--ts)); }
+.coach-head { font-weight: 600; color: var(--teal); margin-bottom: 4px; }
+.coach-tip { margin: 4px 0 0; color: var(--fg-dim); }
+.ws-stuck { margin-top: 12px; font-size: calc(13px * var(--ts)); }
+.ws-stuck a { color: var(--teal); }
 .decision-result { margin-top: 10px; padding: 12px 14px; border-radius: 9px; background: rgba(228, 169, 74, 0.1); border: 1px solid rgba(228, 169, 74, 0.35); font-size: calc(14px * var(--ts)); }
+.decision-cue { margin: 8px 0 0; font-style: italic; }
 .decision-result p { margin: 0; }
 
 /* ------------------------------------------------------------------ desk */

@@ -13,6 +13,7 @@ export interface Settings {
   reducedMotion: boolean | null; // null follows the system setting
   relaxedTimers: boolean; // live cases get twice as long
   fastDialogue: boolean; // show a scene's lines at once instead of one click at a time
+  skipSeen: boolean; // on replays, skip story scenes you have already read
 }
 
 export interface MetaData {
@@ -22,6 +23,8 @@ export interface MetaData {
   codexEver: string[];
   casesEver: string[]; // every case you have ever closed, for practice mode
   secretsEver: string[]; // every team secret you have ever found
+  seenScenes: string[]; // story scene ids whose dialogue you have read, for skip-seen
+  toolsSeen: string[]; // tool kinds you have opened once, for first-use onboarding
   checkpoints: Partial<Record<number, SaveData>>; // chapter -> save at its start
   settings: Settings;
 }
@@ -38,8 +41,10 @@ export function freshMeta(): MetaData {
     codexEver: [],
     casesEver: [],
     secretsEver: [],
+    seenScenes: [],
+    toolsSeen: [],
     checkpoints: {},
-    settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false, fastDialogue: false },
+    settings: { music: 0.7, effects: 0.7, muted: false, textScale: 1, reducedMotion: null, relaxedTimers: false, fastDialogue: false, skipSeen: false },
   };
 }
 
@@ -94,6 +99,20 @@ export function recordSecrets(meta: MetaData, flags: readonly string[]): void {
 /** Remember closed cases, so they can be practised from the title screen. */
 export function recordCases(meta: MetaData, ids: readonly string[]): void {
   for (const id of ids) addOnce(meta.casesEver, id);
+}
+
+/** Remember a story scene has been read, so skip-seen can skip it on replays. */
+export function markSceneSeen(meta: MetaData, id: string): void {
+  addOnce(meta.seenScenes, id);
+}
+
+export function hasSeenScene(meta: MetaData, id: string): boolean {
+  return meta.seenScenes.includes(id);
+}
+
+/** Record a tool kind as opened. Returns true the first time, for the coach tip. */
+export function firstToolUse(meta: MetaData, kind: string): boolean {
+  return addOnce(meta.toolsSeen, kind);
 }
 
 /** Store a copy of the save as it stands at the start of a chapter. */
