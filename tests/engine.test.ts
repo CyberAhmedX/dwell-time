@@ -47,6 +47,11 @@ describe("conditional dialogue lines", () => {
     const gated = reportOut?.reply?.filter((l) => l.showIf?.includes(F.buriedTruth)) ?? [];
     expect(gated).toHaveLength(1);
   });
+
+  it("skips the evidence choice after a failed containment", () => {
+    const evidence = SCENES.find((sc) => sc.id === "s5_evidence");
+    expect(evidence?.hideIf).toContain(FINALE_FAILED);
+  });
 });
 
 describe("ranks", () => {

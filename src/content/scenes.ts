@@ -197,6 +197,9 @@ export const SCENES: Scene[] = [
   {
     id: "s5_evidence",
     chapter: 5,
+    // A failed containment goes straight to Dead Water, so the evidence choice
+    // would change nothing. Skip it rather than offer a hollow decision.
+    hideIf: [FINALE_FAILED],
     lines: [
       { who: "narration", text: "Whatever just happened at the plant, the bigger question is still on the table, and it is yours to answer. You hold everything now: the five-year cover-up, the unrotated password, the name behind BRACKISH." },
       { who: "brackish", text: "You have it all. So do I, almost. What happens next depends on what you do with yours." },
