@@ -28,9 +28,9 @@
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
     "typescript-eslint": "8.33.1",
-    "vite": "6.3.5",
+    "vite": "6.4.4",
     "vite-plugin-singlefile": "2.2.0",
-    "vitest": "3.2.4"
+    "vitest": "5.0.5"
   },
   "engines": {
     "node": ">=20"
