@@ -36,12 +36,8 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Dwell Time ${{ github.event.inputs.tag || github.ref_name }}
-          generate_release_notes: true
+          # Notes come from RELEASE_NOTES.md (update it per release). GitHub's
+          # auto notes only list merged PRs, so direct pushes to main are missed.
+          generate_release_notes: false
           files: dwell-time.html
-          body: |
-            A cozy-to-dark cybersecurity career simulation.
-
-            Play online: https://cyberahmedx.github.io/dwell-time/
-
-            Or download **dwell-time.html** below and open it in any browser. It
-            is fully self-contained and runs offline, no install required.
+          body_path: RELEASE_NOTES.md
