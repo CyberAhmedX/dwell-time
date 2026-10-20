@@ -1,4 +1,4 @@
-import type { Chapter, Dept, Flag } from "./types";
+import type { Chapter, Dept, Flag, SceneLine } from "./types";
 
 export interface SaveData {
   version: 1;
@@ -132,6 +132,11 @@ export function trackFlag(dept: Dept): Flag {
 
 export function hasFlag(save: SaveData, flag: Flag): boolean {
   return save.flags.includes(flag);
+}
+
+/** Dialogue lines gated on a flag drop out until that flag is set. */
+export function visibleLines(save: SaveData, lines: SceneLine[]): SceneLine[] {
+  return lines.filter((l) => hasAll(save, l.showIf));
 }
 
 export function hasAll(save: SaveData, flags?: Flag[]): boolean {

@@ -1,4 +1,4 @@
-import type { Chapter, Dept, Evidence, Scene, SceneChoice, SingleQuestion, Ticket, Question } from "../engine/types";
+import type { Chapter, Dept, Evidence, Scene, SceneChoice, SceneLine, SingleQuestion, Ticket, Question } from "../engine/types";
 import { DEPTS, DEPT_LABEL } from "../engine/types";
 import {
   type SaveData,
@@ -13,6 +13,7 @@ import {
   accuracy,
   hasAll,
   hasNone,
+  visibleLines,
   setFlag,
   markDone,
   isDone,
@@ -1308,10 +1309,11 @@ export class App {
   }
 
   private playDialogue(
-    lines: { who: string; text: string }[],
+    allLines: SceneLine[],
     choice: Scene["choice"] | undefined,
     onDone: () => void,
   ): void {
+    const lines = visibleLines(this.s, allLines);
     let i = 0;
     const box = el("div", { class: "vn", tabindex: 0, role: "button", "aria-label": "Continue the conversation" });
     this.stage.className = "stage vn-stage";
@@ -1407,7 +1409,8 @@ export class App {
       panel.querySelector("button")?.focus();
     };
 
-    if (this.meta.settings.fastDialogue && lines.length > 1) showAll();
+    if (!lines.length) finishLines();
+    else if (this.meta.settings.fastDialogue && lines.length > 1) showAll();
     else showLine();
   }
 

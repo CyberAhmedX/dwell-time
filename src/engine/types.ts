@@ -494,6 +494,7 @@ export interface InterviewTrack {
 export interface SceneLine {
   who: string; // character key or "narration"
   text: string;
+  showIf?: Flag[]; // line only shown if all these flags are present
 }
 
 export interface SceneChoice {

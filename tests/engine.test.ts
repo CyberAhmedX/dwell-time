@@ -8,6 +8,7 @@ import {
   hasFlag,
   hasAll,
   hasNone,
+  visibleLines,
   markDone,
   isDone,
   conduct,
@@ -26,6 +27,27 @@ import { TICKETS } from "../src/content/tickets";
 import { CHAPTERS } from "../src/content/chapters";
 import { resolveEnding, ENDINGS, F, FINALE_SUCCESS, FINALE_FAILED, LIGHTHOUSE_MIN_INTEGRITY } from "../src/engine/endings";
 import { liveSeconds, CROSSED_LINE } from "../src/engine/live";
+import { SCENES } from "../src/content/scenes";
+
+describe("conditional dialogue lines", () => {
+  it("drops showIf lines until the flag is set, keeps ungated ones", () => {
+    const lines = [
+      { who: "you", text: "always" },
+      { who: "walter", text: "only after the promise", showIf: [F.buriedTruth] },
+    ];
+    expect(visibleLines(freshSave(), lines).map((l) => l.text)).toEqual(["always"]);
+    const s = freshSave();
+    setFlag(s, F.buriedTruth);
+    expect(visibleLines(s, lines).map((l) => l.text)).toEqual(["always", "only after the promise"]);
+  });
+
+  it("Walter reacts to reporting out only when you took his promotion", () => {
+    const evidence = SCENES.find((sc) => sc.id === "s5_evidence");
+    const reportOut = evidence?.choice?.options.find((o) => o.setFlags?.includes(F.reportedOut));
+    const gated = reportOut?.reply?.filter((l) => l.showIf?.includes(F.buriedTruth)) ?? [];
+    expect(gated).toHaveLength(1);
+  });
+});
 
 describe("ranks", () => {
   it("starts as Applicant before hire", () => {

@@ -211,6 +211,7 @@ export const SCENES: Scene[] = [
           integrity: 2,
           reply: [
             { who: "you", text: "This goes to the people who can actually fix it, all of it, properly documented. No more buried wounds." },
+            { who: "walter", text: "You gave me your word. I made you Senior Analyst on it. I should have known a promise bought with a title was worth exactly what I paid for it.", showIf: [F.buriedTruth] },
           ],
         },
         {
