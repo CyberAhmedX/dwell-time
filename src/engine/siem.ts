@@ -177,7 +177,14 @@ function parseSearch(s: string): Pred {
 
 function glob(value: string): RegExp {
   const src = value.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return new RegExp(`^${src}$`, "i");
+  try {
+    // A pathological value (far longer than any real field) can make the
+    // regex engine refuse to compile; keep that a friendly error, not a crash.
+    if (src.length > 1000) throw new RangeError("value too long");
+    return new RegExp(`^${src}$`, "i");
+  } catch {
+    throw new SiemError("that value is too long or malformed to search for");
+  }
 }
 
 const num = (v: string | undefined): number => (v !== undefined && v.trim() !== "" ? Number(v) : NaN);
