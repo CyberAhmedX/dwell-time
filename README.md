@@ -49,6 +49,8 @@ The office darkens with the story: cozy and sunlit at first, then rain, then a s
 - **A five-chapter main investigation** built from accurate scenarios: phishing, business email compromise, DNS tunneling, forensic timelines, scoped pentests, threat correlation, and a live incident at the water plant.
 - **A side case in every chapter**, from a cat on the keyboard to a backup audit, a cast of coworkers, and **Field Notes** that unlock plain explanations of each concept as you meet it.
 - **A real terminal**: dig through case files with `grep`, `cut`, `sort | uniq -c`, `sha256sum` and pipes, then type what you found. Any command that finds it counts.
+
+- **Cases that change between runs**: some cases are built fresh each run, so the addresses, account names and the machine at fault are not the same twice. Replaying means reading the evidence again, not recalling an answer.
 - **A SIEM to search**: Splunk-style queries like `action=failure | stats count by src_ip | sort -count`, over hundreds of events.
 - **A firewall to fix**: write ufw-style rules, replay real traffic, and watch each flow get allowed or blocked. The first matching rule wins, just like the real thing.
 - **An admin console**: lock down a hijacked account yourself. Reset the password, sign out every session, remove the attacker's mail rule, fix MFA, in the right order.

@@ -59,6 +59,7 @@ import { SCENES, sceneById } from "../content/scenes";
 import { CHAPTERS, chapterPlan } from "../content/chapters";
 import { CODEX } from "../content/codex";
 import { SECRETS } from "../content/secrets";
+import { withRunData } from "../content/vary";
 import { el, mount, clear, shuffled } from "./dom";
 import { renderEvidence } from "./evidence";
 import { drawShareCard, shareFileName } from "./sharecard";
@@ -529,7 +530,10 @@ export class App {
   }
 
   // ----------------------------------------------------------------- ticket
-  private openTicket(t: Ticket, review: boolean): void {
+  private openTicket(ticket: Ticket, review: boolean): void {
+    // Fill in this run's case data before anything renders or grades, so the
+    // evidence on screen and the answers are checked against the same values.
+    const t = withRunData(ticket, this.s.seed);
     this.playDialogue(
       t.brief.map((text) => ({ who: speakerFor(t), text })),
       undefined,
@@ -1564,6 +1568,7 @@ export class App {
     scratch.track = t.dept;
     scratch.chapter = t.chapter;
     scratch.flags = real.flags.filter((f) => !f.startsWith("hint:"));
+    scratch.seed = real.seed; // practise the case with this run's data, not a new draw
     this.practice = { real };
     this.s = scratch;
     this.scene.setChapter(t.chapter);

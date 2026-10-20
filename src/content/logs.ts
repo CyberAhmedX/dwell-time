@@ -32,19 +32,41 @@ const SCHOOL_DOMAINS = [
   "maps.town-guide.example",
 ];
 
+// Exfil-looking names the tunnel can hide under. All reserved .example, and
+// none overlaps SCHOOL_DOMAINS, so a grep for the tunnel domain only catches
+// the tunnel.
+const TUNNEL_DOMAINS = [
+  "sync-telemetry.example",
+  "metrics-collect.example",
+  "beacon-sync.example",
+  "telemetry-hub.example",
+  "data-relay.example",
+  "node-sync.example",
+];
+
 export interface SchoolDns {
   log: string;
   tunnelDomain: string;
   tunnelCount: number;
+  tunnelHost: string;
+  tunnelIp: string;
 }
 
 /**
  * Twenty minutes of the school resolver's log. Twelve lab PCs browse normally;
- * lab-pc-07 also sends a steady stream of TXT lookups for random names under
- * data.sync-telemetry.example, which is the tunnel.
+ * one of them also sends a steady stream of TXT lookups for random names under
+ * data.<tunnel domain>, which is the tunnel.
+ *
+ * Seeded per run: which lab PC is the tunnel, which domain it talks to, how many
+ * lookups it makes, and all the ordinary noise. The tunnel domains are reserved
+ * and distinct from the normal ones, so the lookup count stays easy to grep.
  */
-export function schoolDnsLog(): SchoolDns {
-  const r = rng(20260314);
+export function schoolDnsLog(seed: number): SchoolDns {
+  const r = rng(seed);
+  const tunnelPc = 1 + Math.floor(r() * 12);
+  const tunnelHost = `lab-pc-${pad(tunnelPc)}`;
+  const tunnelIp = `10.40.7.${100 + tunnelPc}`;
+  const tunnelDomain = TUNNEL_DOMAINS[Math.floor(r() * TUNNEL_DOMAINS.length)];
   const rows: { t: number; line: string }[] = [];
   const start = 13 * 3600;
   for (let pc = 1; pc <= 12; pc++) {
@@ -57,16 +79,15 @@ export function schoolDnsLog(): SchoolDns {
       rows.push({ t, line: `${clock(t)}\t${host}\t${ip}\t${q}\t${r() < 0.85 ? "A" : "AAAA"}\tNOERROR` });
     }
   }
-  const tunnelDomain = "sync-telemetry.example";
   let tunnelCount = 0;
   for (let t = start + 7; t < start + 1200; t += 2 + Math.floor(r() * 2)) {
     const label = Array.from({ length: 8 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(r() * 36)]).join("");
-    rows.push({ t, line: `${clock(t)}\tlab-pc-07\t10.40.7.107\t${label}.data.${tunnelDomain}\tTXT\tNOERROR` });
+    rows.push({ t, line: `${clock(t)}\t${tunnelHost}\t${tunnelIp}\t${label}.data.${tunnelDomain}\tTXT\tNOERROR` });
     tunnelCount++;
   }
   rows.sort((a, b) => a.t - b.t);
   const header = "#fields\ttime\thost\tsrc_ip\tquery\tqtype\trcode";
-  return { log: [header, ...rows.map((x) => x.line)].join("\n") + "\n", tunnelDomain, tunnelCount };
+  return { log: [header, ...rows.map((x) => x.line)].join("\n") + "\n", tunnelDomain, tunnelCount, tunnelHost, tunnelIp };
 }
 
 // ------------------------------------------------------------------ clinic VPN
@@ -92,10 +113,19 @@ export interface ClinicVpn {
  * A day of the clinic's VPN sign-ins. Staff connect from home addresses in
  * town, a night nurse signs in at two, b.osei fumbles a password before work,
  * and at 03:12 one hosting address tries one password against every account it
- * can think of. e.novak is still on her first-day password.
+ * can think of. One staff member is still on their first-day password.
+ *
+ * Seeded per run: the breached account, the staff home addresses, the per-user
+ * login counts and times, and how many accounts the spray tries all vary. The
+ * spray address stays 203.0.113.77, the recurring infrastructure across the
+ * whole game, and so does the clinic's red-herring password fumble.
  */
-export function clinicVpnEvents(): ClinicVpn {
-  const r = rng(20260310);
+export function clinicVpnEvents(seed: number): ClinicVpn {
+  const r = rng(seed);
+  // These three are fixed story beats, never the breached account.
+  const RESERVED = ["b.osei", "k.duarte", "s.nguyen"];
+  const candidates = CLINIC_STAFF.filter((u) => !RESERVED.includes(u));
+  const breached = candidates[Math.floor(r() * candidates.length)];
   const rows: { t: number; e: Record<string, string> }[] = [];
   const home = (i: number): string => `198.51.100.${10 + (i % 50)}`;
   const add = (t: number, e: Record<string, string>): void => {
@@ -123,10 +153,10 @@ export function clinicVpnEvents(): ClinicVpn {
     add(t + 20, { src_ip: home(i), user, action: "success", reason: "", geo: "Port Halden" });
   }
 
-  // the spray: one try per account, 203.0.113.77
+  // the spray: one try per account, from the recurring hosting address
   const sprayIp = "203.0.113.77";
-  const breached = "e.novak";
-  const targets = [...CLINIC_STAFF, ...GUESSED];
+  const guessedN = 8 + Math.floor(r() * (GUESSED.length - 7)); // 8..GUESSED.length, keeps admin/reception
+  const targets = [...CLINIC_STAFF, ...GUESSED.slice(0, guessedN)];
   let t = 3 * 3600 + 12 * 60 + 1;
   for (const user of targets) {
     const known = CLINIC_STAFF.includes(user);

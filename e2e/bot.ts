@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import type { Dept, Question } from "../src/engine/types";
 import { DEPT_LABEL } from "../src/engine/types";
 import { TICKETS } from "../src/content/tickets";
+import { withRunData } from "../src/content/vary";
 import { SCENES } from "../src/content/scenes";
 import { interviewFor } from "../src/content/interviews";
 import { checkScope } from "../src/engine/scope";
@@ -25,7 +26,7 @@ export interface Plan {
   hard?: boolean;
 }
 
-export async function save(page: Page): Promise<{ chapter: number; flags: string[]; done: string[] }> {
+export async function save(page: Page): Promise<{ chapter: number; flags: string[]; done: string[]; seed: number }> {
   return page.evaluate(() => JSON.parse(localStorage.getItem("dwell-time.save.v1") ?? "{}"));
 }
 
@@ -145,8 +146,11 @@ async function workCase(page: Page, plan: Plan): Promise<void> {
     return;
   }
   const title = await page.locator(".ws-title").innerText();
-  const t = TICKETS.find((x) => x.title === title);
-  expect(t, `case "${title}"`).toBeDefined();
+  const base = TICKETS.find((x) => x.title === title);
+  expect(base, `case "${title}"`).toBeDefined();
+  // Fill in the same per-run data the game used, read from its own save, so the
+  // bot's expected answers match what is on screen.
+  const t = withRunData(base!, (await save(page)).seed);
   const blocks = page.locator(".q-panel .q-block");
   await expect(blocks).toHaveCount(t!.questions.length);
   if (plan.hard) await expect(page.locator(".hint-btn")).toHaveCount(0);

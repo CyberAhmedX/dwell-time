@@ -4,11 +4,130 @@ import { TEAM_TICKETS } from "./teamcases";
 import { FINALE_TICKETS } from "./finales";
 import { TEMPT_TICKETS } from "./teamcases4";
 import { SIDE_TICKETS } from "./sides";
-import { schoolDnsLog } from "./logs";
+import { schoolDnsLog, type SchoolDns } from "./logs";
 import { ATTACK_CATALOGUE } from "./attack";
 import { F } from "../engine/endings";
 
-const SCHOOL_DNS = schoolDnsLog();
+// The static default for the school DNS case. A real run rebuilds it from the
+// run's seed (see content/vary.ts); this keeps the catalogue and tests stable.
+const DEFAULT_DNS_SEED = 20260314;
+const SCHOOL_DNS = schoolDnsLog(DEFAULT_DNS_SEED);
+
+// The school DNS tunnel case, built from one run of the resolver-log generator.
+// Which lab PC is the tunnel, the domain it talks to and the lookup count all
+// come from the run's seed. The solutions read the data, so they follow along.
+export function schoolDnsTicket(dns: SchoolDns): Ticket {
+  return {
+    id: "t2_school_dns",
+    chapter: 2,
+    dept: "network",
+    severity: "high",
+    client: "Halden Unified School District",
+    title: "A lab PC that will not stop talking",
+    xp: 70,
+    attack: [
+      { id: "T1071.004", name: "Application Layer Protocol: DNS" },
+      { id: "T1048", name: "Exfiltration Over Alternative Protocol" },
+    ],
+    brief: [
+      "Priya rolls her chair into your aisle.",
+      "The school's firewall is screaming about the computer lab. Far too many DNS lookups. I copied twenty minutes of their resolver log onto an analysis box for you. Find the machine, find where it is talking to, and tell me what you see. No pressure. It is DNS. It is always DNS.",
+    ],
+    evidence: [
+      {
+        kind: "terminal",
+        id: "ev_dns_box",
+        label: "Analysis box: school resolver log",
+        files: { "dns.log": dns.log },
+      },
+      {
+        kind: "flow",
+        id: "ev_dns_flow",
+        label: "Firewall flow summary for the lab, today",
+        caption: "Traffic per destination from the lab's busiest machine.",
+        rows: [
+          { src: dns.tunnelHost, dst: "DNS resolver", port: "53/udp", bytes: "88 MB" },
+          { src: dns.tunnelHost, dst: "school fileshare", port: "445/tcp", bytes: "2 MB" },
+          { src: dns.tunnelHost, dst: "update server", port: "443/tcp", bytes: "40 MB" },
+        ],
+      },
+    ],
+    questions: [
+      {
+        type: "typed",
+        id: "q_dns_host",
+        prompt: "Which machine is making far more lookups than the rest of the lab?",
+        answer: [dns.tunnelHost, dns.tunnelIp],
+        placeholder: "Host name or address",
+        explainRight: `Right. Every other lab PC makes under a hundred lookups in twenty minutes. ${dns.tunnelHost} makes several hundred.`,
+        explainWrong: `It is ${dns.tunnelHost}. Count lookups per host and it stands far above every other machine in the lab.`,
+        teaches: "dns-tunnel",
+        hint: "Count lookups per host: cut out the host column, then sort | uniq -c | sort -rn.",
+        solution: { evidence: "ev_dns_box", command: "cut -f2 dns.log | sort | uniq -c | sort -rn | head -3" },
+      },
+      {
+        type: "typed",
+        id: "q_dns_domain",
+        prompt: "Which domain are most of its lookups going to?",
+        answer: [dns.tunnelDomain, `data.${dns.tunnelDomain}`],
+        placeholder: "Domain",
+        explainRight: `Right. Hundreds of TXT lookups for random names under data.${dns.tunnelDomain}, and no name ever repeats. Each random name is a chunk of data leaving the school.`,
+        explainWrong: `It is ${dns.tunnelDomain}. Strip the random first label off each name and nearly all of the machine's lookups land on data.${dns.tunnelDomain}.`,
+        teaches: "dns-tunnel",
+        hint: "Keep only that machine's lines with grep, then look at the query column. The first part of each name is random, so cut it off with cut -d. -f2-.",
+        solution: { evidence: "ev_dns_box", command: `grep ${dns.tunnelHost} dns.log | cut -f4 | cut -d. -f2- | sort | uniq -c | sort -rn | head -3` },
+      },
+      {
+        type: "typed",
+        id: "q_dns_count",
+        prompt: "How many lookups went to that domain in these twenty minutes?",
+        answer: [String(dns.tunnelCount)],
+        placeholder: "A number",
+        explainRight: `Right, ${dns.tunnelCount}. About one every two to three seconds, for the whole sample, from one lab PC. Nobody browses like that.`,
+        explainWrong: `It is ${dns.tunnelCount}. grep -c counts the lines that match, which is one line per lookup.`,
+        teaches: "dns-tunnel",
+        hint: "grep -c counts matching lines instead of printing them.",
+        solution: { evidence: "ev_dns_box", command: `grep -c ${dns.tunnelDomain} dns.log` },
+      },
+      {
+        type: "single",
+        id: "q_dns_why_dns",
+        prompt: "Why would an attacker choose DNS for this?",
+        options: [
+          "DNS traffic is encrypted, so the firewall cannot read it",
+          "Firewalls nearly always let DNS out unchecked",
+          "DNS is faster than HTTPS for moving large files",
+          "DNS queries are never logged, so nothing is left behind",
+        ],
+        answer: 1,
+        explainRight: "Exactly. Block DNS and the whole network breaks, so it is left open, which makes it a tempting smuggling route.",
+        explainWrong: "DNS is left open on almost every network because things break without it. That near-universal allowance is exactly why it gets abused as a tunnel.",
+        teaches: "dns-tunnel",
+        hint: "Think about what stops working on a network that blocks DNS.",
+      },
+      {
+        type: "order",
+        id: "q_dns_steps",
+        prompt: "Order your response.",
+        items: [
+          `Isolate ${dns.tunnelHost} from the network`,
+          `Block the domain ${dns.tunnelDomain} at the resolver`,
+          "Capture the machine for forensics before anyone wipes it",
+          "Hunt for the same domain or pattern on other machines",
+        ],
+        explainRight: "Good. Contain the host, cut the channel, preserve it for forensics, then hunt for spread. Stop the bleeding, then investigate, then widen.",
+        explainWrong: "Isolate the host, block the domain, preserve the machine for forensics, then hunt for the pattern elsewhere. Contain, cut, preserve, hunt.",
+        teaches: "dns-tunnel",
+        hint: "Stop the leak first. Save the machine before anyone cleans it. Look wider last.",
+      },
+    ],
+    closingRight: [
+      "Priya pumps a fist.",
+      "DNS. I rest my case. Nice read, though, you did not just take my word for it, you checked the flow. That matters. The domain is blocked and the box is bagged for Imani.",
+    ],
+    setFlags: ["dns_case"],
+  };
+}
 
 // The full source of the Brightloaf phishing email, as the mail server saved
 // it. Received headers stack up newest first, so the hop Brightloaf's own
@@ -354,114 +473,7 @@ const STORY_TICKETS: Ticket[] = [
     setFlags: ["bec_linked", "saw_portal_domain"],
   },
   {
-    id: "t2_school_dns",
-    chapter: 2,
-    dept: "network",
-    severity: "high",
-    client: "Halden Unified School District",
-    title: "A lab PC that will not stop talking",
-    xp: 70,
-    attack: [
-      { id: "T1071.004", name: "Application Layer Protocol: DNS" },
-      { id: "T1048", name: "Exfiltration Over Alternative Protocol" },
-    ],
-    brief: [
-      "Priya rolls her chair into your aisle.",
-      "The school's firewall is screaming about the computer lab. Far too many DNS lookups. I copied twenty minutes of their resolver log onto an analysis box for you. Find the machine, find where it is talking to, and tell me what you see. No pressure. It is DNS. It is always DNS.",
-    ],
-    evidence: [
-      {
-        kind: "terminal",
-        id: "ev_dns_box",
-        label: "Analysis box: school resolver log",
-        files: { "dns.log": SCHOOL_DNS.log },
-      },
-      {
-        kind: "flow",
-        id: "ev_dns_flow",
-        label: "Firewall flow summary for the lab, today",
-        caption: "Traffic per destination from the lab's busiest machine.",
-        rows: [
-          { src: "lab-pc-07", dst: "DNS resolver", port: "53/udp", bytes: "88 MB" },
-          { src: "lab-pc-07", dst: "school fileshare", port: "445/tcp", bytes: "2 MB" },
-          { src: "lab-pc-07", dst: "update server", port: "443/tcp", bytes: "40 MB" },
-        ],
-      },
-    ],
-    questions: [
-      {
-        type: "typed",
-        id: "q_dns_host",
-        prompt: "Which machine is making far more lookups than the rest of the lab?",
-        answer: ["lab-pc-07", "10.40.7.107"],
-        placeholder: "Host name or address",
-        explainRight: "Right. Every other lab PC makes under a hundred lookups in twenty minutes. lab-pc-07 makes several hundred.",
-        explainWrong: "It is lab-pc-07. Count lookups per host and it stands far above every other machine in the lab.",
-        teaches: "dns-tunnel",
-        hint: "Count lookups per host: cut out the host column, then sort | uniq -c | sort -rn.",
-        solution: { evidence: "ev_dns_box", command: "cut -f2 dns.log | sort | uniq -c | sort -rn | head -3" },
-      },
-      {
-        type: "typed",
-        id: "q_dns_domain",
-        prompt: "Which domain are most of its lookups going to?",
-        answer: ["sync-telemetry.example", "data.sync-telemetry.example"],
-        placeholder: "Domain",
-        explainRight: "Right. Hundreds of TXT lookups for random names under data.sync-telemetry.example, and no name ever repeats. Each random name is a chunk of data leaving the school.",
-        explainWrong: "It is sync-telemetry.example. Strip the random first label off each name and nearly all of the machine's lookups land on data.sync-telemetry.example.",
-        teaches: "dns-tunnel",
-        hint: "Keep only that machine's lines with grep, then look at the query column. The first part of each name is random, so cut it off with cut -d. -f2-.",
-        solution: { evidence: "ev_dns_box", command: "grep lab-pc-07 dns.log | cut -f4 | cut -d. -f2- | sort | uniq -c | sort -rn | head -3" },
-      },
-      {
-        type: "typed",
-        id: "q_dns_count",
-        prompt: "How many lookups went to that domain in these twenty minutes?",
-        answer: [String(SCHOOL_DNS.tunnelCount)],
-        placeholder: "A number",
-        explainRight: `Right, ${SCHOOL_DNS.tunnelCount}. About one every two to three seconds, for the whole sample, from one lab PC. Nobody browses like that.`,
-        explainWrong: `It is ${SCHOOL_DNS.tunnelCount}. grep -c counts the lines that match, which is one line per lookup.`,
-        teaches: "dns-tunnel",
-        hint: "grep -c counts matching lines instead of printing them.",
-        solution: { evidence: "ev_dns_box", command: "grep -c sync-telemetry dns.log" },
-      },
-      {
-        type: "single",
-        id: "q_dns_why_dns",
-        prompt: "Why would an attacker choose DNS for this?",
-        options: [
-          "DNS traffic is encrypted, so the firewall cannot read it",
-          "Firewalls nearly always let DNS out unchecked",
-          "DNS is faster than HTTPS for moving large files",
-          "DNS queries are never logged, so nothing is left behind",
-        ],
-        answer: 1,
-        explainRight: "Exactly. Block DNS and the whole network breaks, so it is left open, which makes it a tempting smuggling route.",
-        explainWrong: "DNS is left open on almost every network because things break without it. That near-universal allowance is exactly why it gets abused as a tunnel.",
-        teaches: "dns-tunnel",
-        hint: "Think about what stops working on a network that blocks DNS.",
-      },
-      {
-        type: "order",
-        id: "q_dns_steps",
-        prompt: "Order your response.",
-        items: [
-          "Isolate lab-pc-07 from the network",
-          "Block the domain sync-telemetry.example at the resolver",
-          "Capture the machine for forensics before anyone wipes it",
-          "Hunt for the same domain or pattern on other machines",
-        ],
-        explainRight: "Good. Contain the host, cut the channel, preserve it for forensics, then hunt for spread. Stop the bleeding, then investigate, then widen.",
-        explainWrong: "Isolate the host, block the domain, preserve the machine for forensics, then hunt for the pattern elsewhere. Contain, cut, preserve, hunt.",
-        teaches: "dns-tunnel",
-        hint: "Stop the leak first. Save the machine before anyone cleans it. Look wider last.",
-      },
-    ],
-    closingRight: [
-      "Priya pumps a fist.",
-      "DNS. I rest my case. Nice read, though, you did not just take my word for it, you checked the flow. That matters. The domain is blocked and the box is bagged for Imani.",
-    ],
-    setFlags: ["dns_case"],
+    ...schoolDnsTicket(SCHOOL_DNS),
   },
 
   // ------------------------------------------------------------------ CH 3

@@ -100,6 +100,7 @@ function cleanSave(x: unknown): SaveData | null {
   s.interviewFails = count(x.interviewFails);
   s.hintsUsed = count(x.hintsUsed);
   s.hard = x.hard === true;
+  s.seed = typeof x.seed === "number" && Number.isFinite(x.seed) ? x.seed >>> 0 : s.seed;
   // a hired run with no track or no chapter makes no sense; start that run over
   if (s.hired && (!s.track || s.chapter === 0)) return null;
   return s;

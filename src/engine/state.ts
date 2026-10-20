@@ -18,6 +18,12 @@ export interface SaveData {
   interviewFails: number; // rejected interviews before being hired
   hintsUsed: number; // hints bought across the run
   hard: boolean; // hard mode: no hints, and every case gets one attempt
+  seed: number; // per-run seed: varies some case data each run (see content/vary.ts)
+}
+
+/** A fresh run seed, as a 32-bit unsigned integer. */
+export function randomSeed(): number {
+  return Math.floor(Math.random() * 0x100000000);
 }
 
 // Conduct tiers derived from the hidden integrity score. Ethical choices move
@@ -76,6 +82,7 @@ export function freshSave(): SaveData {
     interviewFails: 0,
     hintsUsed: 0,
     hard: false,
+    seed: randomSeed(),
   };
 }
 
@@ -174,7 +181,10 @@ export function load(): SaveData {
     if (!raw) return freshSave();
     const data = JSON.parse(raw) as Partial<SaveData>;
     if (data.version !== 1) return freshSave();
-    return { ...freshSave(), ...data };
+    const merged = { ...freshSave(), ...data };
+    // Saves from before per-run seeds get a fresh one so case data still varies.
+    if (!Number.isFinite(merged.seed)) merged.seed = randomSeed();
+    return merged;
   } catch {
     return freshSave();
   }

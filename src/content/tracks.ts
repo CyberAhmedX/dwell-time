@@ -1,8 +1,11 @@
 import type { Ticket } from "../engine/types";
-import { clinicVpnEvents } from "./logs";
+import { clinicVpnEvents, type ClinicVpn } from "./logs";
 import { sha256 } from "../engine/sha256";
 
-const CLINIC_VPN = clinicVpnEvents();
+// The static default for the SOC spray case. A real run rebuilds it from the
+// run's seed (see content/vary.ts); this keeps the catalogue and tests stable.
+const DEFAULT_SEED = 20260310;
+const CLINIC_VPN = clinicVpnEvents(DEFAULT_SEED);
 
 // Passive DNS for the leak-site case. The post gives only tollgate.test, but
 // that name shares an address with the crew's payment portal, so pivoting the
@@ -56,9 +59,11 @@ const USB_FILES: Record<string, string> = {
 // Tollkeepers. Same house rules as tickets.ts: documentation IPs, reserved
 // domains, nothing real.
 
-export const TRACK_TICKETS: Ticket[] = [
-  // ------------------------------------------------------------------ SOC
-  {
+// The SOC chapter-two case, built from one run of the clinic VPN generator.
+// The breached account, the spray's reach and all the noise come from the run's
+// seed; the spray address 203.0.113.77 stays put as the recurring thread.
+export function socSprayTicket(vpn: ClinicVpn): Ticket {
+  return {
     id: "tr_soc",
     chapter: 2,
     dept: "soc",
@@ -82,8 +87,8 @@ export const TRACK_TICKETS: Ticket[] = [
         id: "ev_spray_siem",
         label: "SIEM: St. Brennan's VPN, last 24 hours",
         index: "clinic_vpn",
-        fields: CLINIC_VPN.fields,
-        events: CLINIC_VPN.events,
+        fields: vpn.fields,
+        events: vpn.events,
       },
       {
         kind: "note",
@@ -102,10 +107,10 @@ export const TRACK_TICKETS: Ticket[] = [
         type: "typed",
         id: "q_spray_ip",
         prompt: "Which address is behind most of the failed sign-ins?",
-        answer: [CLINIC_VPN.sprayIp],
+        answer: [vpn.sprayIp],
         placeholder: "IP address",
         explainRight: "Right. A hosting provider address with dozens of failures in under three minutes. The b.osei failures from town are a person who forgot a new password; they got in on the fourth try.",
-        explainWrong: `It is ${CLINIC_VPN.sprayIp}. Count failures by source address and it stands far above the few typos from staff at home.`,
+        explainWrong: `It is ${vpn.sprayIp}. Count failures by source address and it stands far above the few typos from staff at home.`,
         teaches: "password-spray",
         hint: "Search for failures, then count them by source address: | stats count by src_ip, and sort the biggest to the top.",
         solution: { evidence: "ev_spray_siem", command: "action=failure | stats count by src_ip | sort -count | head 3" },
@@ -114,38 +119,38 @@ export const TRACK_TICKETS: Ticket[] = [
         type: "typed",
         id: "q_spray_accounts",
         prompt: "How many different accounts did that address try?",
-        answer: [String(CLINIC_VPN.sprayAccounts)],
+        answer: [String(vpn.sprayAccounts)],
         placeholder: "A number",
-        explainRight: `Right, ${CLINIC_VPN.sprayAccounts}, one try each. That is a password spray: one common password against every account, slow enough per account to dodge lockouts.`,
-        explainWrong: `It is ${CLINIC_VPN.sprayAccounts}, one try each, including names that do not even exist here, like admin and reception. One password against many accounts is a spray.`,
+        explainRight: `Right, ${vpn.sprayAccounts}, one try each. That is a password spray: one common password against every account, slow enough per account to dodge lockouts.`,
+        explainWrong: `It is ${vpn.sprayAccounts}, one try each, including names that do not even exist here, like admin and reception. One password against many accounts is a spray.`,
         teaches: "password-spray",
         hint: "dc(user) counts distinct values. Try it on that one address.",
-        solution: { evidence: "ev_spray_siem", command: `src_ip=${CLINIC_VPN.sprayIp} | stats dc(user)` },
+        solution: { evidence: "ev_spray_siem", command: `src_ip=${vpn.sprayIp} | stats dc(user)` },
       },
       {
         type: "typed",
         id: "q_spray_in",
         prompt: "Which account did it get into?",
-        answer: [CLINIC_VPN.breached],
+        answer: [vpn.breached],
         placeholder: "Account name",
-        explainRight: "Right. e.novak, at 03:12, the only success from that address. She never changed her first-day password, and it was the one they guessed.",
-        explainWrong: "It is e.novak: the only success from that address, at 03:12, in the middle of the spray.",
+        explainRight: `Right. ${vpn.breached}, the only success from that address, in the middle of the spray. They never changed their first-day password, and it was the one the attacker guessed.`,
+        explainWrong: `It is ${vpn.breached}: the only success from that address, in the middle of the spray.`,
         teaches: "password-spray",
         hint: "Search that address for a success instead of a failure.",
-        solution: { evidence: "ev_spray_siem", command: `src_ip=${CLINIC_VPN.sprayIp} action=success | table _time user geo` },
+        solution: { evidence: "ev_spray_siem", command: `src_ip=${vpn.sprayIp} action=success | table _time user geo` },
       },
       {
         type: "order",
         id: "q_spray_steps",
         prompt: "Order your response, first step at the top.",
         items: [
-          "Disable e.novak and end every session it has open",
-          "Check what the e.novak session touched after 03:12",
+          `Disable ${vpn.breached} and end every session it has open`,
+          `Check what the ${vpn.breached} session touched after it got in`,
           "Reset every account still on its first-day password",
           "Turn on MFA for the VPN, so one guessed password is not enough",
         ],
         explainRight: "Good. Cut off the session that got in, find out what it did, close the hole it used, then make sure one guessed password is never enough again.",
-        explainWrong: "Contain first: end the e.novak session. Then find out what it touched. Then reset the first-day passwords, then add MFA. Contain, scope, fix, prevent.",
+        explainWrong: `Contain first: end the ${vpn.breached} session. Then find out what it touched. Then reset the first-day passwords, then add MFA. Contain, scope, fix, prevent.`,
         teaches: "mfa",
         hint: "Someone is inside right now. What has to happen before anything else?",
       },
@@ -169,10 +174,15 @@ export const TRACK_TICKETS: Ticket[] = [
     ],
     closingRight: [
       "Mags reads it twice, which is her version of applause.",
-      "Same address as the Brightloaf mailbox, by the way. 203.0.113.77. I have written it on the whiteboard. I do not like it being on the whiteboard.",
+      `Same address as the Brightloaf mailbox, by the way. ${vpn.sprayIp}. I have written it on the whiteboard. I do not like it being on the whiteboard.`,
     ],
     setFlags: ["spray_case"],
-  },
+  };
+}
+
+export const TRACK_TICKETS: Ticket[] = [
+  // ------------------------------------------------------------------ SOC
+  socSprayTicket(CLINIC_VPN),
 
   // ------------------------------------------------------------------ Network
   {
